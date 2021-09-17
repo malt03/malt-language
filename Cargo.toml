@@ -7,3 +7,5 @@ edition = "2018"
 
 [dependencies]
 structopt = "0.3.13"
+strum = "0.21"
+strum_macros = "0.21"
