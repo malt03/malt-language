@@ -7,8 +7,8 @@ use std::io::{self, BufRead};
 use super::token_kind::TokenKind;
 use super::token_kind_converter::TokenKindConverter;
 
-pub(crate) struct Token<'a> {
-  kind: TokenKind<'a>,
+pub(crate) struct Token {
+  kind: TokenKind,
   line: usize,
   range: Range<usize>,
 }
@@ -21,7 +21,7 @@ pub(crate) struct Tokens<'a, Lines: Iterator<Item = io::Result<String>>> {
 }
 
 impl<'a, Lines: Iterator<Item = io::Result<String>>> Iterator for Tokens<'a, Lines> {
-  type Item = Token<'a>;
+  type Item = Token;
   
   fn next(&mut self) -> Option<Self::Item> {
     self.converter.convert(self.line, &mut self.cursor);

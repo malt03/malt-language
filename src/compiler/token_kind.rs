@@ -1,7 +1,7 @@
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum TokenKind<'a> {
-  Identifier(&'a str),
-  Number(&'a str),
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub(crate) enum TokenKind {
+  Identifier,
+  Number,
   OpenParen,
   CloseParen,
   Plus,
