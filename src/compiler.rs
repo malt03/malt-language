@@ -1,6 +1,12 @@
-mod token;
 mod token_kind;
-mod token_kind_converter;
+mod token_converter;
+mod token;
+mod tokens;
+
+pub(crate) use token_kind::TokenKind;
+pub(crate) use token_converter::TokenConverter;
+pub(crate) use token::Token;
+pub(crate) use tokens::Tokens;
 
 use std::io;
 
