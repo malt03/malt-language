@@ -1,24 +1,31 @@
 use structopt::StructOpt;
-use std::fs::File;
-use std::io::{self, BufRead};
+use std::fs;
+use std::io;
 
 use lang::compiler::compile;
 
 #[derive(StructOpt)]
 struct Cli {
-    /// The path to the file to read
-    #[structopt(parse(from_os_str))]
-    file: std::path::PathBuf,
+  #[structopt(parse(from_os_str))]
+  input: std::path::PathBuf,
+  #[structopt(parse(from_os_str))]
+  output: std::path::PathBuf,
+}
+
+fn unwrap_or_exit<T, E: std::fmt::Display>(result: core::result::Result<T, E>) -> T {
+  match result {
+    Ok(value) => value,
+    Err(err) => {
+      println!("{}", err);
+      std::process::exit(1);
+    }
+  }
 }
 
 fn main() {
   let args = Cli::from_args();
 
-  match File::open(&args.file) {
-    Ok(file) => compile(io::BufReader::new(file).lines()),
-    Err(err) => {
-      println!("{}: {}", err, args.file.to_str().unwrap());
-      std::process::exit(1);
-    }
-  }
+  let text = unwrap_or_exit(fs::read_to_string(&args.input));
+  let writer = io::BufWriter::new(unwrap_or_exit(fs::File::create(&args.output)));
+  unwrap_or_exit(compile(text, writer));
 }

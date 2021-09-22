@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum TokenKind {
   Identifier,
   Number,
@@ -15,4 +15,5 @@ pub(crate) enum TokenKind {
   Less,
   LessOrEqual,
   NewLine,
+  EOF,
 }

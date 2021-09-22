@@ -1,6 +1,7 @@
 use std::{collections::{HashMap, HashSet}, iter::FromIterator};
 use super::{Token, TokenKind};
 
+#[derive(Debug)]
 pub(crate) struct TokenConverter<'a> {
   maps: Vec<(usize, HashMap<&'a str, TokenKind>)>,
   newline_chars: HashSet<char>,

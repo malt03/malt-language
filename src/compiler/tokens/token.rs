@@ -1,10 +1,10 @@
 use std::ops::Range;
 use super::TokenKind;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub(crate) struct Token<'a> {
-  kind: TokenKind,
-  value: &'a str,
+  pub(crate) kind: TokenKind,
+  pub(crate) value: &'a str,
   range: Range<usize>,
 }
 
