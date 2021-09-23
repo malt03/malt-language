@@ -6,28 +6,44 @@ use std::io;
 use tokens::PeekableTokens;
 use syntax_tree::SyntaxTree;
 
-// #[derive(Debug)]
-// enum Error {
-//   IO(io::Error),
-//   SyntaxTree(syntax_tree::)
-// }
+#[derive(Debug)]
+pub enum Error<'a> {
+    IO(io::Error),
+    SyntaxTree(syntax_tree::Error<'a>)
+}
+impl<'a> From<io::Error> for Error<'a> {
+    fn from(err: io::Error) -> Self { Error::IO(err) }
+}
+impl<'a> From<syntax_tree::Error<'a>> for Error<'a> {
+    fn from(err: syntax_tree::Error<'a>) -> Self { Error::SyntaxTree(err) }
+}
+impl<'a> std::fmt::Display for Error<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::IO(err) => err.fmt(f),
+            Error::SyntaxTree(err) => err.fmt(f),
+        }
+    }
+}
 
-pub fn compile<W: io::Write>(text: String, mut writer: W) -> io::Result<()> {
-  writer.write_all(br#"(module
+pub type Result<'a, T> = std::result::Result<T, Error<'a>>;
+
+pub fn compile<'a, W: io::Write>(text: &'a str, mut writer: W) -> Result<'a, ()> {
+    writer.write_all(br#"(module
 (import "wasi_unstable" "proc_exit" (func $_exit (param i32)))
 (func $_start
 "#)?;
 
-  let tokens = PeekableTokens::new(&text);
-  let syntax_tree = SyntaxTree::new(tokens).unwrap();
-  syntax_tree.write_wasm(&mut writer)?;
+    let tokens = PeekableTokens::new(&text);
+    let syntax_tree = SyntaxTree::new(tokens)?;
+    syntax_tree.write_wasm(&mut writer)?;
 
-  writer.write_all(br#"
+    writer.write_all(br#"
 call $_exit)
 (memory 0)
 (export "memory" (memory 0))
 (export "_start" (func $_start)))"#)?;
-  writer.flush()?;
+    writer.flush()?;
 
-  Ok(())
+    Ok(())
 }
