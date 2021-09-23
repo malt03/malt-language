@@ -18,25 +18,25 @@ pub enum TokenKind {
     EOF,
 }
 
-// impl std::fmt::Display for TokenKind {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             TokenKind::Identifier => todo!(),
-//             TokenKind::Number => todo!(),
-//             TokenKind::OpenParen => todo!(),
-//             TokenKind::CloseParen => todo!(),
-//             TokenKind::Plus => todo!(),
-//             TokenKind::Minus => todo!(),
-//             TokenKind::Times => todo!(),
-//             TokenKind::Divide => todo!(),
-//             TokenKind::Assign => todo!(),
-//             TokenKind::Equal => todo!(),
-//             TokenKind::Greater => todo!(),
-//             TokenKind::GreaterOrEqual => todo!(),
-//             TokenKind::Less => todo!(),
-//             TokenKind::LessOrEqual => todo!(),
-//             TokenKind::NewLine => todo!(),
-//             TokenKind::EOF => todo!(),
-//         }
-//     }
-// }
+impl ToString for TokenKind {
+    fn to_string(&self) -> String {
+        match self {
+            TokenKind::Identifier => "identifier".into(),
+            TokenKind::Number => "number".into(),
+            TokenKind::OpenParen => "'('".into(),
+            TokenKind::CloseParen => "')'".into(),
+            TokenKind::Plus => "'+'".into(),
+            TokenKind::Minus => "'-'".into(),
+            TokenKind::Times => "'*'".into(),
+            TokenKind::Divide => "'/'".into(),
+            TokenKind::Assign => "'='".into(),
+            TokenKind::Equal => "'='=".into(),
+            TokenKind::Greater => "'>'".into(),
+            TokenKind::GreaterOrEqual => "'>'=".into(),
+            TokenKind::Less => "'<'".into(),
+            TokenKind::LessOrEqual => "'<'=".into(),
+            TokenKind::NewLine => "newline".into(),
+            TokenKind::EOF => "eof".into(),
+        }
+    }
+}
