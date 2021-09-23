@@ -116,12 +116,12 @@ mod tests {
 
     #[test]
     fn error() {
-        let mut tokens = PeekableTokens::new("hoge;piyo");
+        let mut tokens = PeekableTokens::new("hoge¥piyo");
         tokens.next().unwrap();
 
         let expected = r#"unexpected character found. line: 1
 
-hoge;piyo
+hoge¥piyo
     ^
 "#;
         assert_eq!(tokens.next().unwrap_err().to_string(), expected);
