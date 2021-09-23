@@ -45,10 +45,10 @@ mod tests {
     #[test]
     fn error() {
         let expected = r#"Unexpected token found. line: 1
-Expected: [OpenParen, Number]
+Expected: '(' / number
 
 2 + 3 * (5 - (1 + +)) / 2
-                                    ^
+                  ^
 "#;
         let err = SyntaxTree::new(PeekableTokens::new("2 + 3 * (5 - (1 + +)) / 2")).unwrap_err();
         assert_eq!(err.to_string(), expected);

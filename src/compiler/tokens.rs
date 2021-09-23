@@ -37,7 +37,12 @@ impl<'a> PeekableTokens<'a> {
 
 impl<'a> Iterator for PeekableTokens<'a> {
     type Item = Token<'a>;
-    fn next(&mut self) -> Option<Self::Item> { Some(self.next()) }
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.next();
+
+        if next.kind == TokenKind::EOF { None }
+        else { Some(next) }
+    }
 }
 
 struct Tokens<'a> {
