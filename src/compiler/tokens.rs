@@ -46,7 +46,7 @@ impl<'a> Iterator for PeekableTokens<'a> {
 }
 
 struct Tokens<'a> {
-    converter: TokenConverter<'a>,
+    converter: TokenConverter,
     text: &'a str,
     cursor: usize,
 }
@@ -96,4 +96,9 @@ mod tests {
             Token::new(TokenKind::CloseParen, ")", 16..17 ),
         ]);
     }
+
+    // #[test]
+    // fn error() {
+    //     PeekableTokens::new("hoge¥piyo").collect::<Vec<_>>();
+    // }
 }

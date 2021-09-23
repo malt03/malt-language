@@ -2,35 +2,35 @@ use std::{collections::{HashMap, HashSet}, iter::FromIterator};
 use super::{Token, TokenKind};
 
 #[derive(Debug)]
-pub(crate) struct TokenConverter<'a> {
-    maps: Vec<(usize, HashMap<&'a str, TokenKind>)>,
+pub(crate) struct TokenConverter {
+    tokens_maps: Vec<(usize, HashMap<String, TokenKind>)>,
     newline_chars: HashSet<char>,
     identifier_chars: HashSet<char>,
     number_chars: HashSet<char>,
     whitespaces: HashSet<char>,
 }
 
-impl<'a> TokenConverter<'a> {
+impl TokenConverter {
     pub(crate) fn new() -> Self {
-        let two = HashMap::<_, _>::from_iter([
-            ("==", TokenKind::Equal),
-            (">=", TokenKind::GreaterOrEqual),
-            ("<=", TokenKind::LessOrEqual),
+        let two: HashMap::<String, TokenKind> = HashMap::from_iter([
+            ("==".into(), TokenKind::Equal),
+            (">=".into(), TokenKind::GreaterOrEqual),
+            ("<=".into(), TokenKind::LessOrEqual),
         ]);
-        let one = HashMap::<_, _>::from_iter([
-            ("(", TokenKind::OpenParen),
-            (")", TokenKind::CloseParen),
-            ("+", TokenKind::Plus),
-            ("-", TokenKind::Minus),
-            ("*", TokenKind::Times),
-            ("/", TokenKind::Divide),
-            ("=", TokenKind::Assign),
-            (">", TokenKind::Greater),
-            ("<", TokenKind::Less),
+        let one: HashMap::<String, TokenKind> = HashMap::from_iter([
+            ("(".into(), TokenKind::OpenParen),
+            (")".into(), TokenKind::CloseParen),
+            ("+".into(), TokenKind::Plus),
+            ("-".into(), TokenKind::Minus),
+            ("*".into(), TokenKind::Times),
+            ("/".into(), TokenKind::Divide),
+            ("=".into(), TokenKind::Assign),
+            (">".into(), TokenKind::Greater),
+            ("<".into(), TokenKind::Less),
         ]);
         
         TokenConverter {
-            maps: vec![
+            tokens_maps: vec![
                 (2, two),
                 (1, one),
             ],
@@ -41,21 +41,21 @@ impl<'a> TokenConverter<'a> {
         }
     }
 
-    pub(crate) fn convert(&self, text: &'a str, cursor: &mut usize) -> Token<'a> {
+    pub(crate) fn convert<'a>(&self, text: &'a str, cursor: &mut usize) -> Token<'a> {
         let max_length = text.len();
 
         loop {
-            let current_char = &text[*cursor..(*cursor + 1)].chars().next().unwrap();
+            let current_char = &text[*cursor..].chars().next().unwrap();
             
             if self.whitespaces.contains(current_char) {
-                *cursor += 1;
+                *cursor += current_char.len_utf8();
                 continue;
             }
             
             let start = *cursor;
 
             if self.newline_chars.contains(current_char) {
-                *cursor += 1;
+                *cursor += current_char.len_utf8();
                 return Token::new(TokenKind::NewLine, "\n", start..*cursor);
             }
             
@@ -73,34 +73,35 @@ impl<'a> TokenConverter<'a> {
         }
     }
 
-    fn take_while<P: FnMut(char) -> bool>(text: &'a str, cursor: &mut usize, mut predicate: P) -> &'a str {
+    fn take_while<'a, P: FnMut(char) -> bool>(text: &'a str, cursor: &mut usize, mut predicate: P) -> &'a str {
         let chars = text[*cursor..].chars();
-        let mut count: usize = 0;
+        let mut len: usize = 0;
         for char in chars.into_iter() {
             if !predicate(char) { break; }
-            count += 1;
+            len += char.len_utf8();
         }
         let start = *cursor;
-        *cursor += count;
+        *cursor += len;
         
         return &text[start..*cursor];
     }
 
-    fn take_identifier(&self, text: &'a str, cursor: &mut usize) -> &'a str {
+    fn take_identifier<'a>(&self, text: &'a str, cursor: &mut usize) -> &'a str {
         TokenConverter::take_while(text, cursor, |c| self.identifier_chars.contains(&c))
     }
 
-    fn take_number(&self, text: &'a str, cursor: &mut usize) -> &'a str {
+    fn take_number<'a>(&self, text: &'a str, cursor: &mut usize) -> &'a str {
         TokenConverter::take_while(text, cursor, |c| self.number_chars.contains(&c))
     }
 
-    fn convert_operators(&self, text: &'a str, cursor: &mut usize, max_length: usize) -> Option<(TokenKind, &'a str)> {
-        for (length, map) in &self.maps {
-            if *cursor + length > max_length { continue; }
-            let target = &text[*cursor..(*cursor + length)];
-            if let Some(kind) = map.get(target) {
-                *cursor += length;
-                return Some((kind.clone(), target));
+    fn convert_operators<'a>(&self, text: &'a str, cursor: &mut usize, max_length: usize) -> Option<(TokenKind, &'a str)> {
+        for (length, map) in &self.tokens_maps {
+            if *cursor + *length > max_length { continue; }
+            let target: String = text[*cursor..].chars().take(*length).collect();
+            if let Some(kind) = map.get(&target) {
+                let start = *cursor;
+                *cursor += target.len();
+                return Some((kind.clone(), &text[start..*cursor]));
             }
         }
 
