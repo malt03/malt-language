@@ -3,8 +3,14 @@ mod syntax_tree;
 
 use std::io;
 
-use tokens::Tokens;
+use tokens::PeekableTokens;
 use syntax_tree::SyntaxTree;
+
+// #[derive(Debug)]
+// enum Error {
+//   IO(io::Error),
+//   SyntaxTree(syntax_tree::)
+// }
 
 pub fn compile<W: io::Write>(text: String, mut writer: W) -> io::Result<()> {
   writer.write_all(br#"(module
@@ -12,8 +18,8 @@ pub fn compile<W: io::Write>(text: String, mut writer: W) -> io::Result<()> {
 (func $_start
 "#)?;
 
-  let tokens = Tokens::new(&text);
-  let syntax_tree = SyntaxTree::new(&mut tokens.peekable());
+  let tokens = PeekableTokens::new(&text);
+  let syntax_tree = SyntaxTree::new(tokens).unwrap();
   syntax_tree.write_wasm(&mut writer)?;
 
   writer.write_all(br#"

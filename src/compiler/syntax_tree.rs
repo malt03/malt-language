@@ -1,3 +1,4 @@
+mod error;
 mod binary_operator;
 mod syntax_tree;
 mod generate_wasm;
@@ -7,13 +8,13 @@ pub(crate) use syntax_tree::SyntaxTree;
 
 #[cfg(test)]
 mod tests {
-  use super::super::Tokens;
+  use super::super::PeekableTokens;
   use super::{SyntaxTree, BinaryOperator};
 
   #[test]
   fn it_works() {
     assert_eq!(
-      SyntaxTree::new(&mut Tokens::new("2 + 3 * (5 - (1 + 4)) / 2").peekable()),
+      SyntaxTree::new(PeekableTokens::new("2 + 3 * (5 - (1 + 4)) / 2")).unwrap(),
       SyntaxTree::BinaryExpr {
         lhs: Box::new(SyntaxTree::Value("2")),
         rhs: Box::new(SyntaxTree::BinaryExpr {

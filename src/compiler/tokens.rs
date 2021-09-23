@@ -6,7 +6,41 @@ use token::Token;
 pub(crate) use token_kind::TokenKind;
 use token_converter::TokenConverter;
 
-pub(crate) struct Tokens<'a> {
+#[derive(Debug)]
+pub(crate) struct PeekableTokens<'a> {
+  tokens: Tokens<'a>,
+  peeked: Option<Token<'a>>,
+}
+
+impl<'a> PeekableTokens<'a> {
+  pub(crate) fn new(text: &'a str) -> PeekableTokens {
+    PeekableTokens { tokens: Tokens::new(text), peeked: None }
+  }
+}
+
+impl<'a> PeekableTokens<'a> {
+  pub(crate) fn next(&mut self) -> Token<'a> {
+    match self.peeked.take() {
+      Some(v) => v,
+      None => self.tokens.next(),
+    }
+  }
+
+  pub(crate) fn peek(&mut self) -> &Token<'a> {
+    let tokens = &mut self.tokens;
+    self.peeked.get_or_insert_with(|| tokens.next())
+  }
+
+  pub(crate) fn text(&self) -> &'a str { self.tokens.text }
+  pub(crate) fn cursor(&self) -> usize { self.tokens.cursor }
+}
+
+impl<'a> Iterator for PeekableTokens<'a> {
+  type Item = Token<'a>;
+  fn next(&mut self) -> Option<Self::Item> { Some(self.next()) }
+}
+
+struct Tokens<'a> {
   converter: TokenConverter<'a>,
   text: &'a str,
   cursor: usize,
@@ -19,7 +53,7 @@ impl<'a> std::fmt::Debug for Tokens<'a> {
 }
 
 impl<'a> Tokens<'a> {
-  pub(crate) fn new(text: &'a str) -> Tokens {
+  fn new(text: &'a str) -> Tokens {
     Tokens {
       converter: TokenConverter::new(),
       text,
@@ -28,22 +62,20 @@ impl<'a> Tokens<'a> {
   }
 }
 
-impl<'a> Iterator for Tokens<'a> {
-  type Item = Token<'a>;
-  
-  fn next(&mut self) -> Option<Token<'a>> {
-    if self.text.len() == self.cursor { return Some(Token::new(TokenKind::EOF, "", 0..0)); }
+impl<'a> Tokens<'a> {
+  fn next(&mut self) -> Token<'a> {
+    if self.text.len() == self.cursor { return Token::new(TokenKind::EOF, "", 0..0); }
 
-    Some(self.converter.convert(self.text, &mut self.cursor))
+    self.converter.convert(self.text, &mut self.cursor)
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use super::{Tokens, Token, TokenKind};
+  use super::{PeekableTokens, Token, TokenKind};
 
   fn test<'a, Iter: IntoIterator<Item = Token<'a>>>(text: &str, expect: Iter) {
-    assert_eq!(Tokens::new(text).collect::<Vec<_>>(), expect.into_iter().collect::<Vec<_>>());
+    assert_eq!(PeekableTokens::new(text).collect::<Vec<_>>(), expect.into_iter().collect::<Vec<_>>());
   }
   
   #[test]
