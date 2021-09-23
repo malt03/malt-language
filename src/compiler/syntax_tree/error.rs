@@ -1,4 +1,4 @@
-use super::super::tokens::{self, PeekableTokens, TokenKind};
+use super::super::tokens::{self, PeekableTokens, TokenKind, Token};
 
 #[derive(Debug)]
 pub enum Error<'a> {
@@ -16,10 +16,11 @@ impl<'a> Error<'a> {
     pub(crate) fn unexpected_token<T: IntoIterator<Item = TokenKind>>(
         expected_kinds: T,
         tokens: &PeekableTokens<'a>,
+        token: &Token<'a>,
     ) -> Error<'a> {
         Error::UnexpectedToken {
             expected_kinds: expected_kinds.into_iter().collect(),
-            cursor: tokens.cursor(),
+            cursor: token.range.start,
             text: tokens.text(),
         }
     }

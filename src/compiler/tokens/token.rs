@@ -5,7 +5,7 @@ use super::TokenKind;
 pub(crate) struct Token<'a> {
     pub(crate) kind: TokenKind,
     pub(crate) value: &'a str,
-    range: Range<usize>,
+    pub(crate) range: Range<usize>,
 }
 
 impl<'a> Token<'a> {

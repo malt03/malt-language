@@ -43,6 +43,10 @@ mod tests {
         )
     }
 
+    fn error_test(text: &str, expected: &str) {
+        let err = SyntaxTree::new(PeekableTokens::new(text)).unwrap_err();
+        assert_eq!(err.to_string(), expected);
+    }
 
     #[test]
     fn error() {
@@ -52,7 +56,6 @@ Expected: '(' / number
 2 + 3 * (5 - (1 + +)) / 2
                   ^
 "#;
-        let err = SyntaxTree::new(PeekableTokens::new("2 + 3 * (5 - (1 + +)) / 2")).unwrap_err();
-        assert_eq!(err.to_string(), expected);
+        error_test("2 + 3 * (5 - (1 + +)) / 2", expected);
     }
 }

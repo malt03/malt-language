@@ -5,7 +5,7 @@ mod token_converter;
 
 use error::Result;
 pub(crate) use error::Error;
-use token::Token;
+pub(crate) use token::Token;
 pub(crate) use token_kind::TokenKind;
 use token_converter::TokenConverter;
 
@@ -41,7 +41,6 @@ impl<'a> PeekableTokens<'a> {
     }
 
     pub(crate) fn text(&self) -> &'a str { self.tokens.text }
-    pub(crate) fn cursor(&self) -> usize { self.tokens.cursor }
 }
 
 impl<'a> Iterator for PeekableTokens<'a> {
@@ -114,16 +113,23 @@ mod tests {
         ]);
     }
 
+    fn error_test(text: &str, expected: &str) {
+        for result in PeekableTokens::new(text) {
+            if let Err(err) = result {
+                assert_eq!(err.to_string(), expected);
+                return;
+            }
+        }
+        panic!("no error");
+    }
+
     #[test]
     fn error() {
-        let mut tokens = PeekableTokens::new("hoge¥piyo");
-        tokens.next().unwrap();
-
         let expected = r#"unexpected character found. line: 1
 
 hoge¥piyo
     ^
 "#;
-        assert_eq!(tokens.next().unwrap_err().to_string(), expected);
+        error_test("hoge¥piyo", expected);
     }
 }

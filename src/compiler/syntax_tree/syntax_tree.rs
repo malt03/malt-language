@@ -55,17 +55,20 @@ impl<'a> SyntaxTree<'a> {
         let token = tokens.peek()?;
         match token.kind {
             TokenKind::OpenParen => {
-                tokens.next()?;
+                let token = tokens.next()?;
                 let tree = SyntaxTree::expr(tokens)?;
                 
                 if tokens.next()?.kind != TokenKind::CloseParen {
-                    Err(Error::unexpected_token([TokenKind::CloseParen], tokens))
+                    Err(Error::unexpected_token([TokenKind::CloseParen], tokens, &token))
                 } else {
                     Ok(tree)
                 }
             },
             TokenKind::Number => Ok(SyntaxTree::Value(tokens.next()?.value)),
-            _ => Err(Error::unexpected_token([TokenKind::OpenParen, TokenKind::Number], tokens))
+            _ => {
+                let token = tokens.next()?;
+                Err(Error::unexpected_token([TokenKind::OpenParen, TokenKind::Number], tokens, &token))
+            },
         }
     }
 
