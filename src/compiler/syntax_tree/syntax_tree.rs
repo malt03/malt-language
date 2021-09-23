@@ -20,10 +20,10 @@ impl<'a> SyntaxTree<'a> {
         let mut tree = SyntaxTree::mul(tokens)?;
         
         loop {
-            let token = tokens.peek();
+            let token = tokens.peek()?;
             match token.kind {
                 TokenKind::Plus | TokenKind::Minus => {
-                    let token = tokens.next();
+                    let token = tokens.next()?;
                     let rhs = SyntaxTree::mul(tokens)?;
                     tree = SyntaxTree::BinaryExpr { lhs: Box::new(tree), rhs: Box::new(rhs), operator: (&token.kind).into() }
                 },
@@ -36,10 +36,10 @@ impl<'a> SyntaxTree<'a> {
         let mut tree = SyntaxTree::primary(tokens)?;
         
         loop {
-            let token = tokens.peek();
+            let token = tokens.peek()?;
             match token.kind {
                 TokenKind::Times | TokenKind::Divide => {
-                    let token = tokens.next();
+                    let token = tokens.next()?;
                     let rhs = SyntaxTree::primary(tokens)?;
                     tree = SyntaxTree::BinaryExpr { lhs: Box::new(tree), rhs: Box::new(rhs), operator: (&token.kind).into() };
                 },
@@ -49,20 +49,20 @@ impl<'a> SyntaxTree<'a> {
     }
 
     fn primary(tokens: &mut PeekableTokens<'a>) -> Result<'a, SyntaxTree<'a>> {
-        let token = tokens.peek();
+        let token = tokens.peek()?;
         
         match token.kind {
             TokenKind::OpenParen => {
-                tokens.next();
+                tokens.next()?;
                 let tree = SyntaxTree::expr(tokens)?;
                 
-                if tokens.next().kind != TokenKind::CloseParen {
+                if tokens.next()?.kind != TokenKind::CloseParen {
                     Err(Error::unexpected_token([TokenKind::CloseParen], tokens))
                 } else {
                     Ok(tree)
                 }
             },
-            TokenKind::Number => Ok(SyntaxTree::Value(tokens.next().value)),
+            TokenKind::Number => Ok(SyntaxTree::Value(tokens.next()?.value)),
             _ => Err(Error::unexpected_token([TokenKind::OpenParen, TokenKind::Number], tokens))
         }
     }

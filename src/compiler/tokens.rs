@@ -1,7 +1,10 @@
+mod error;
 mod token;
 mod token_kind;
 mod token_converter;
 
+use error::Result;
+pub(crate) use error::Error;
 use token::Token;
 pub(crate) use token_kind::TokenKind;
 use token_converter::TokenConverter;
@@ -19,16 +22,22 @@ impl<'a> PeekableTokens<'a> {
 }
 
 impl<'a> PeekableTokens<'a> {
-    pub(crate) fn next(&mut self) -> Token<'a> {
+    pub(crate) fn next(&mut self) -> Result<'a, Token<'a>> {
         match self.peeked.take() {
-            Some(v) => v,
+            Some(v) => Ok(v),
             None => self.tokens.next(),
         }
     }
 
-    pub(crate) fn peek(&mut self) -> &Token<'a> {
+    pub(crate) fn peek(&mut self) -> Result<'a, &Token<'a>> {
         let tokens = &mut self.tokens;
-        self.peeked.get_or_insert_with(|| tokens.next())
+        match self.peeked {
+            Some(ref token) => Ok(token),
+            None => {
+                self.peeked = Some(tokens.next()?);
+                Ok(self.peeked.as_ref().unwrap())
+            }
+        }
     }
 
     pub(crate) fn text(&self) -> &'a str { self.tokens.text }
@@ -36,12 +45,17 @@ impl<'a> PeekableTokens<'a> {
 }
 
 impl<'a> Iterator for PeekableTokens<'a> {
-    type Item = Token<'a>;
+    type Item = Result<'a, Token<'a>>;
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.next();
 
-        if next.kind == TokenKind::EOF { None }
-        else { Some(next) }
+        match &next {
+            Ok(token) => {
+                if token.kind == TokenKind::EOF { None }
+                else { Some(next) }
+            },
+            Err(_) => Some(next),
+        }
     }
 }
 
@@ -68,8 +82,8 @@ impl<'a> Tokens<'a> {
 }
 
 impl<'a> Tokens<'a> {
-    fn next(&mut self) -> Token<'a> {
-        if self.text.len() == self.cursor { return Token::new(TokenKind::EOF, "", 0..0); }
+    fn next(&mut self) -> Result<'a, Token<'a>> {
+        if self.text.len() == self.cursor { return Ok(Token::new(TokenKind::EOF, "", 0..0)); }
 
         self.converter.convert(self.text, &mut self.cursor)
     }
@@ -80,7 +94,10 @@ mod tests {
     use super::{PeekableTokens, Token, TokenKind};
 
     fn test<'a, Iter: IntoIterator<Item = Token<'a>>>(text: &str, expect: Iter) {
-        assert_eq!(PeekableTokens::new(text).collect::<Vec<_>>(), expect.into_iter().collect::<Vec<_>>());
+        assert_eq!(
+            PeekableTokens::new(text).map(|r| r.unwrap()).collect::<Vec<_>>(),
+            expect.into_iter().collect::<Vec<_>>(),
+        );
     }
     
     #[test]
@@ -97,8 +114,16 @@ mod tests {
         ]);
     }
 
-    // #[test]
-    // fn error() {
-    //     PeekableTokens::new("hoge¥piyo").collect::<Vec<_>>();
-    // }
+    #[test]
+    fn error() {
+        let mut tokens = PeekableTokens::new("hoge;piyo");
+        tokens.next().unwrap();
+
+        let expected = r#"unexpected character found. line: 1
+
+hoge;piyo
+    ^
+"#;
+        assert_eq!(tokens.next().unwrap_err().to_string(), expected);
+    }
 }

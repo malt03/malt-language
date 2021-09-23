@@ -1,8 +1,15 @@
-use super::super::tokens::{PeekableTokens, TokenKind};
+use super::super::tokens::{self, PeekableTokens, TokenKind};
 
 #[derive(Debug)]
 pub enum Error<'a> {
     UnexpectedToken { expected_kinds: Vec<TokenKind>, cursor: usize, text: &'a str },
+    Tokens(tokens::Error<'a>),
+}
+
+impl<'a> From<tokens::Error<'a>> for Error<'a> {
+    fn from(err: tokens::Error<'a>) -> Self {
+        Error::Tokens(err)
+    }
 }
 
 impl<'a> Error<'a> {
@@ -27,7 +34,7 @@ impl<'a> std::fmt::Display for Error<'a> {
                 for (line_number, line) in lines.enumerate() {
                     let len = line.len();
                     if read_len + len < *cursor {
-                        read_len += len;
+                        read_len += len + 1;
                         continue;
                     }
                     let line_cursor = *cursor - read_len;
@@ -40,10 +47,12 @@ impl<'a> std::fmt::Display for Error<'a> {
                     f.write_fmt(format_args!("Expected: {}\n\n", expected_kinds))?;
                     f.write_fmt(format_args!("{}\n", line))?;
                     f.write_fmt(format_args!("{}^\n", " ".repeat(line_cursor - 1)))?;
+                    break;
                 }
                 
                 return Ok(())
             },
+            Error::Tokens(err) => err.fmt(f),
         }
     }
 }

@@ -1,5 +1,5 @@
 use std::{collections::{HashMap, HashSet}, iter::FromIterator};
-use super::{Token, TokenKind};
+use super::{Token, TokenKind, error::{Error, Result}};
 
 #[derive(Debug)]
 pub(crate) struct TokenConverter {
@@ -41,7 +41,7 @@ impl TokenConverter {
         }
     }
 
-    pub(crate) fn convert<'a>(&self, text: &'a str, cursor: &mut usize) -> Token<'a> {
+    pub(crate) fn convert<'a>(&self, text: &'a str, cursor: &mut usize) -> Result<'a, Token<'a>> {
         let max_length = text.len();
 
         loop {
@@ -56,19 +56,19 @@ impl TokenConverter {
 
             if self.newline_chars.contains(current_char) {
                 *cursor += current_char.len_utf8();
-                return Token::new(TokenKind::NewLine, "\n", start..*cursor);
+                return Ok(Token::new(TokenKind::NewLine, "\n", start..*cursor));
             }
             
             if let Some((kind, value)) = self.convert_operators(text, cursor, max_length) {
-                return Token::new(kind, value, start..*cursor);
+                return Ok(Token::new(kind, value, start..*cursor));
             }
             
             return if self.number_chars.contains(current_char) {
-                Token::new(TokenKind::Number, self.take_number(text, cursor), start..*cursor)
+                Ok(Token::new(TokenKind::Number, self.take_number(text, cursor), start..*cursor))
             } else if self.identifier_chars.contains(current_char) {
-                Token::new(TokenKind::Identifier, self.take_identifier(text, cursor), start..*cursor)
+                Ok(Token::new(TokenKind::Identifier, self.take_identifier(text, cursor), start..*cursor))
             } else {
-                panic!("unexpected character {}", current_char)
+                Err(Error::unexpected_char(start, text))
             }
         }
     }
@@ -118,7 +118,7 @@ mod tests {
     fn test(text: &str, cursor: usize, expect_cursor: usize, token: Token) {
         let converter = TokenConverter::new();
         let mut cursor = cursor;
-        assert_eq!(converter.convert(text, &mut cursor), token);
+        assert_eq!(converter.convert(text, &mut cursor).unwrap(), token);
         assert_eq!(cursor, expect_cursor);
     }
 
