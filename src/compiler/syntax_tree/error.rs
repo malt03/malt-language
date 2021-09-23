@@ -20,7 +20,28 @@ impl<'a> Error<'a> {
 
 impl<'a> std::fmt::Display for Error<'a> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.write_str("data")
+    match self {
+      Error::UnexpectedToken { expected_kinds, cursor, text } => {
+
+        let lines = text.split('\n');
+        let mut read_len: usize = 0;
+        for (line_number, line) in lines.enumerate() {
+          let len = line.len();
+          if read_len + len < *cursor {
+            read_len += len;
+            continue;
+          }
+          let line_cursor = *cursor - read_len;
+
+          f.write_fmt(format_args!("Unexpected token found. line: {}\n", line_number + 1))?;
+          f.write_fmt(format_args!("Expected: {:?}\n\n", expected_kinds))?;
+          f.write_fmt(format_args!("{}\n", line))?;
+          f.write_fmt(format_args!("{}^\n", " ".repeat(line_cursor - 1)))?;
+        }
+
+        return Ok(())
+      },
+    }
   }
 }
 
