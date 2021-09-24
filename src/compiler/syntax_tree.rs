@@ -1,6 +1,7 @@
 mod error;
 mod unary_operator;
 mod binary_operator;
+mod syntax_tree_node;
 mod syntax_tree;
 mod generate_wasm;
 
@@ -8,7 +9,8 @@ use binary_operator::BinaryOperator;
 use unary_operator::UnaryOperator;
 
 pub(crate) use error::Error;
-pub(crate) use syntax_tree::{SyntaxTree, SyntaxTreeNode};
+pub(crate) use syntax_tree_node::SyntaxTreeNode;
+pub(crate) use syntax_tree::SyntaxTree;
 
 #[cfg(test)]
 mod tests {

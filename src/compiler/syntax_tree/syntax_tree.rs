@@ -1,19 +1,5 @@
-use super::{UnaryOperator, BinaryOperator, error::{Result, Error}};
+use super::{UnaryOperator, SyntaxTreeNode, error::{Result, Error}};
 use super::super::tokens::{PeekableTokens, TokenKind};
-
-#[derive(Debug, PartialEq)]
-pub(crate) enum SyntaxTreeNode<'a> {
-    Value(&'a str),
-    UnaryExpr {
-        child: Box<SyntaxTreeNode<'a>>,
-        operator: UnaryOperator,
-    },
-    BinaryExpr {
-        lhs: Box<SyntaxTreeNode<'a>>,
-        rhs: Box<SyntaxTreeNode<'a>>,
-        operator: BinaryOperator,
-    },
-}
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct SyntaxTree<'a> {
