@@ -3,3 +3,7 @@ fn main() {
     bar: I32 = 10 - 4
     return foo + bar
 }
+
+fn baz() {
+    return 10
+}

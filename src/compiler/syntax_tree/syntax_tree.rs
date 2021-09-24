@@ -1,9 +1,9 @@
-use super::{ExpressionNode, FunctionNode, StatementNode, UnaryOperator, error::{Result, Error}, LocalValue};
+use super::{ModuleNode, ExpressionNode, FunctionNode, StatementNode, UnaryOperator, error::{Result, Error}, LocalValue};
 use super::super::tokens::{Token, PeekableTokens, TokenKind};
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct SyntaxTree<'a> {
-    pub(crate) root: FunctionNode<'a>,
+    pub(crate) root: ModuleNode<'a>,
 }
 
 struct FunctionBody<'a> {
@@ -14,7 +14,7 @@ struct FunctionBody<'a> {
 
 impl<'a> SyntaxTree<'a> {
     pub(crate) fn new(mut tokens: PeekableTokens<'a>) -> Result<'a, SyntaxTree<'a>> {
-        let root = SyntaxTree::function(&mut tokens)?;
+        let root = SyntaxTree::module(&mut tokens)?;
         Ok(SyntaxTree { root })
     }
 
@@ -30,6 +30,18 @@ impl<'a> SyntaxTree<'a> {
             Ok(())
         } else {
             Err(Error::unexpected_token([kind], tokens, &token))
+        }
+    }
+
+    fn module(tokens: &mut PeekableTokens<'a>) -> Result<'a, ModuleNode<'a>> {
+        let mut functions: Vec<FunctionNode<'a>> = Vec::new();
+        loop {
+            SyntaxTree::skip_newlines(tokens)?;
+
+            functions.push(SyntaxTree::function(tokens)?);
+
+            let token = tokens.peek()?;
+            if token.kind == TokenKind::EOF { return Ok(ModuleNode{ functions }); }
         }
     }
 
@@ -54,6 +66,7 @@ impl<'a> SyntaxTree<'a> {
         let body = SyntaxTree::function_body(tokens)?;
 
         SyntaxTree::confirm_kind(TokenKind::CloseBrace, &tokens.next()?, tokens)?;
+        SyntaxTree::confirm_kind(TokenKind::NewLine, &tokens.next()?, tokens)?;
         
         Ok(FunctionNode {
             name,

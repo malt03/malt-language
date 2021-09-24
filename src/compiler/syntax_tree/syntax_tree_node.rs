@@ -1,6 +1,11 @@
 use super::{UnaryOperator, BinaryOperator, LocalValue};
 
 #[derive(Debug, PartialEq)]
+pub(crate) struct ModuleNode<'a> {
+    pub(crate) functions: Vec<FunctionNode<'a>>,
+}
+
+#[derive(Debug, PartialEq)]
 pub(crate) struct FunctionNode<'a> {
     pub(crate) name: &'a str,
     pub(crate) arguments: Vec<LocalValue<'a>>,

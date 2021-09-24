@@ -1,27 +1,34 @@
 use std::io;
-use super::{BinaryOperator, ExpressionNode, FunctionNode, StatementNode, SyntaxTree, UnaryOperator};
+use super::{BinaryOperator, ModuleNode, ExpressionNode, FunctionNode, StatementNode, SyntaxTree, UnaryOperator};
 
 impl<'a> SyntaxTree<'a> {
     pub(crate) fn write_wasm<W: io::Write>(&self,  writer: &mut W) -> io::Result<()> {
-        self.write_program(writer, &self.root)
+        self.write_module(writer, &self.root)
     }
 
-    fn write_program<W: io::Write>(&self, writer: &mut W, program: &FunctionNode<'a>) -> io::Result<()> {
-        writer.write_all(b"(func $main ")?;
-        if program.return_statement.is_some() {
+    fn write_module<W: io::Write>(&self, writer: &mut W, program: &ModuleNode<'a>) -> io::Result<()> {
+        for function in &program.functions {
+            self.write_function(writer, function)?
+        }
+        Ok(())
+    }
+
+    fn write_function<W: io::Write>(&self, writer: &mut W, function: &FunctionNode<'a>) -> io::Result<()> {
+        writer.write_fmt(format_args!("(func ${} ", function.name))?;
+        if function.return_statement.is_some() {
             writer.write_all(b"(result i32)")?;
         }
-        for local_value in &program.local_values {
+        for local_value in &function.local_values {
             writer.write_fmt(format_args!("(local ${} i32)", local_value.name))?;
         }
         writer.write_all(b"\n")?;
-        for statement in &program.statements {
+        for statement in &function.statements {
             self.write_statement(writer, statement)?
         }
-        if let Some(expression) = &program.return_statement {
+        if let Some(expression) = &function.return_statement {
             self.write_expression(writer, expression)?
         }
-        writer.write_all(b")")?;
+        writer.write_all(b")\n")?;
         Ok(())
     }
 

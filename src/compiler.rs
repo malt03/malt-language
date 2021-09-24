@@ -37,8 +37,7 @@ pub fn compile<'a, W: io::Write>(text: &'a str, mut writer: W) -> Result<'a, ()>
     let syntax_tree = SyntaxTree::new(tokens)?;
     syntax_tree.write_wasm(&mut writer)?;
 
-    writer.write_all(br#"
-(func $_start
+    writer.write_all(br#"(func $_start
 call $main
 call $_exit)
 (memory 0)
