@@ -108,7 +108,8 @@ mod tests {
         let expect = r#"(func $main (result i32)(local $foo i32)(local $bar i32)
 (local.set $foo(i32.add(i32.const 2)(i32.div_s(i32.mul(i32.const 3)(i32.add(i32.sub(i32.const 5)(i32.const 1))(i32.const 1)))(i32.const 3))))
 (local.set $bar(i32.sub(i32.const 10)(i32.const 4)))
-(i32.add(local.get $foo)(local.get $bar)))"#;
+(i32.add(local.get $foo)(local.get $bar)))
+"#;
 
         let tree = SyntaxTree::new(PeekableTokens::new(code)).unwrap();
         tree.write_wasm(&mut buffer).unwrap();
