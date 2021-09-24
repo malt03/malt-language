@@ -49,7 +49,7 @@ impl<'a> std::fmt::Display for Error<'a> {
                     f.write_fmt(format_args!("Expected: {}\n", expected_kinds))?;
                     f.write_fmt(format_args!("Found: {}\n\n", kind.to_string()))?;
                     f.write_fmt(format_args!("{}\n", line))?;
-                    f.write_fmt(format_args!("{}^\n", " ".repeat(line_cursor - 1)))?;
+                    f.write_fmt(format_args!("{}^\n", " ".repeat(line_cursor)))?;
                     break;
                 }
                 

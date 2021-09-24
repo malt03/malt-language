@@ -220,51 +220,7 @@ impl<'a> SyntaxTree<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{PeekableTokens, SyntaxTree, ExpressionNode, FunctionNode, StatementNode};
-    use super::super::BinaryOperator;
-
-    #[test]
-    fn local_value() {
-        SyntaxTree::new(PeekableTokens::new("foo = 2\nbar = 3")).unwrap();
-    }
-
-    // #[test]
-    // fn it_works() {
-    //     assert_eq!(
-    //         SyntaxTree::new(PeekableTokens::new("2 + 3 * (5 - (1 + 4)) / 2\n")).unwrap(),
-    //         SyntaxTree {
-    //             root: FunctionNode {
-    //                 local_values: vec![],
-    //                 return_statement: None,
-    //                 statements: vec![
-    //                     StatementNode::Expression(
-    //                         ExpressionNode::BinaryExpr {
-    //                             lhs: Box::new(ExpressionNode::Value("2")),
-    //                             rhs: Box::new(ExpressionNode::BinaryExpr {
-    //                                 lhs: Box::new(ExpressionNode::BinaryExpr {
-    //                                     lhs: Box::new(ExpressionNode::Value("3")),
-    //                                     rhs: Box::new(ExpressionNode::BinaryExpr {
-    //                                         lhs: Box::new(ExpressionNode::Value("5")),
-    //                                         rhs: Box::new(ExpressionNode::BinaryExpr {
-    //                                             lhs: Box::new(ExpressionNode::Value("1")),
-    //                                             rhs: Box::new(ExpressionNode::Value("4")),
-    //                                             operator: BinaryOperator::Plus,
-    //                                         }),
-    //                                         operator: BinaryOperator::Minus,
-    //                                     }),
-    //                                     operator: BinaryOperator::Multiply,
-    //                                 }),
-    //                                 rhs: Box::new(ExpressionNode::Value("2")),
-    //                                 operator: BinaryOperator::Divide,
-    //                             }),
-    //                             operator: BinaryOperator::Plus,
-    //                         }
-    //                     )
-    //                 ]
-    //             }
-    //         }
-    //     )
-    // }
+    use super::{PeekableTokens, SyntaxTree};
 
     fn error_test(text: &str, expected: &str) {
         let err = SyntaxTree::new(PeekableTokens::new(text)).unwrap_err();
@@ -273,12 +229,19 @@ mod tests {
 
     #[test]
     fn error() {
-        let expected = r#"Unexpected token found. line: 1
-Expected: '(' / number
-
-2 + 3 * (5 - (1 + +)) / 2
-                  ^
+        let code = r#"fn main() {
+    foo: I32 = 2 + 3 * ((5 - 1) + 1) / 3
+    bar: I32 = 10 + ++2
+    return foo + bar
+}
 "#;
-        error_test("2 + 3 * (5 - (1 + +)) / 2", expected);
+        let expected = r#"Unexpected token found. line: 3
+Expected: '(' / number
+Found: '+'
+
+    bar: I32 = 10 + ++2
+                     ^
+"#;
+        error_test(code, expected);
     }
 }
