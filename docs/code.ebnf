@@ -11,4 +11,6 @@ expression       = add
 add              = multiply { '+' {'\n'} multiply | '-' {'\n'} multiply }
 multiply         = unary { '*' {'\n'} unary | '/' {'\n'} unary }
 unary            = ( '+' | '-' )? primary
-primary          = num | identifier | '(' {'\n'} expression {'\n'} ')'
+primary          = num | identifier | function_call | '(' {'\n'} expression {'\n'} ')'
+function_call    = identifier '(' call_arguments? ')'
+call_arguments   = {'\n'} expression { ',' {'\n'} expression  } ','? {'\n'}

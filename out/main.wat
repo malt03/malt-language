@@ -3,9 +3,9 @@
 (func $main (result i32)(local $foo i32)(local $bar i32)
 (local.set $foo(i32.add(i32.const 2)(i32.div_s(i32.mul(i32.const 3)(i32.add(i32.sub(i32.const 5)(i32.const 1))(i32.const 1)))(i32.const 3))))
 (local.set $bar(i32.sub(i32.const 10)(i32.const 4)))
-(i32.add(local.get $foo)(local.get $bar)))
-(func $baz (result i32)
-(i32.const 10))
+(call $baz (local.get $foo)(local.get $bar)))
+(func $baz (param $a i32)(param $b i32)(result i32)
+(i32.mul(local.get $a)(local.get $b)))
 (func $_start
 call $main
 call $_exit)

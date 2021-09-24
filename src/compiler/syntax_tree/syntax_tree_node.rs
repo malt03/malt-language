@@ -24,6 +24,10 @@ pub(crate) enum StatementNode<'a> {
 pub(crate) enum ExpressionNode<'a> {
     Identifier(&'a str),
     Value(&'a str),
+    FunctionCall {
+        name: &'a str,
+        arguments: Vec<ExpressionNode<'a>>,
+    },
     UnaryExpr {
         child: Box<ExpressionNode<'a>>,
         operator: UnaryOperator,

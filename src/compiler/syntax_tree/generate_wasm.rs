@@ -15,6 +15,9 @@ impl<'a> SyntaxTree<'a> {
 
     fn write_function<W: io::Write>(&self, writer: &mut W, function: &FunctionNode<'a>) -> io::Result<()> {
         writer.write_fmt(format_args!("(func ${} ", function.name))?;
+        for argument in &function.arguments {
+            writer.write_fmt(format_args!("(param ${} i32)", argument.name))?;
+        }
         if function.return_statement.is_some() {
             writer.write_all(b"(result i32)")?;
         }
@@ -52,6 +55,13 @@ impl<'a> SyntaxTree<'a> {
             },
             ExpressionNode::Identifier(name) => {
                 writer.write_fmt(format_args!("(local.get ${})", name))?;
+            },
+            ExpressionNode::FunctionCall { name, arguments } => {
+                writer.write_fmt(format_args!("(call ${} ", name))?;
+                for argument in arguments {
+                    self.write_expression(writer, argument)?;
+                }
+                writer.write_all(b")")?;
             },
             ExpressionNode::UnaryExpr { child, operator } => {
                 match operator {

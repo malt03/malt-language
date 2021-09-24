@@ -19,10 +19,10 @@ impl<'a> SyntaxTree<'a> {
     }
 
     fn skip_newlines(tokens: &mut PeekableTokens<'a>) -> Result<'a, ()> {
-        loop {
-            if tokens.peek()?.kind != TokenKind::NewLine { return Ok(()) }
+        while tokens.peek()?.kind == TokenKind::NewLine {
             tokens.next()?;
         }
+        Ok(())
     }
 
     fn confirm_kind(kind: TokenKind, token: &Token<'a>, tokens: &PeekableTokens<'a>) -> Result<'a, ()> {
@@ -81,13 +81,12 @@ impl<'a> SyntaxTree<'a> {
         if tokens.peek()?.kind != TokenKind::Identifier { return Ok(vec![]); }
 
         let mut values: Vec<LocalValue<'a>> = vec![SyntaxTree::value_definition(tokens)?];
-        loop {
-            let token = tokens.peek()?;
-            if token.kind != TokenKind::Comma { return Ok(values); }
+        while tokens.peek()?.kind == TokenKind::Comma {
             tokens.next()?;
             SyntaxTree::skip_newlines(tokens)?;
             values.push(SyntaxTree::value_definition(tokens)?);
         }
+        Ok(values)
     }
 
     fn value_definition(tokens: &mut PeekableTokens<'a>) -> Result<'a, LocalValue<'a>> {
@@ -222,12 +221,47 @@ impl<'a> SyntaxTree<'a> {
                 Ok(expression)
             },
             TokenKind::Number => Ok(ExpressionNode::Value(tokens.next()?.value)),
-            TokenKind::Identifier => Ok(ExpressionNode::Identifier(tokens.next()?.value)),
+            TokenKind::Identifier => {
+                let name = tokens.next()?.value;
+                if tokens.peek()?.kind == TokenKind::OpenParen {
+                    Ok(SyntaxTree::function_call(tokens, name)?)
+                }  else {
+                    Ok(ExpressionNode::Identifier(name))
+                }
+            },
             _ => {
                 let token = tokens.next()?;
                 Err(Error::unexpected_token([TokenKind::OpenParen, TokenKind::Number], tokens, &token))
             },
         }
+    }
+
+    fn function_call(tokens: &mut PeekableTokens<'a>, name: &'a str) -> Result<'a, ExpressionNode<'a>> {
+        SyntaxTree::confirm_kind(TokenKind::OpenParen, &tokens.next()?, tokens)?;
+        let arguments: Vec<ExpressionNode<'a>> = if tokens.peek()?.kind == TokenKind::CloseParen {
+            tokens.next()?;
+            Vec::new()
+        } else {
+            let arguments = SyntaxTree::call_arguments(tokens)?;
+            SyntaxTree::confirm_kind(TokenKind::CloseParen, &tokens.next()?, tokens)?;
+            arguments
+        };
+        
+        Ok(ExpressionNode::FunctionCall { name, arguments })
+    }
+
+    fn call_arguments(tokens: &mut PeekableTokens<'a>) -> Result<'a, Vec<ExpressionNode<'a>>> {
+        SyntaxTree::skip_newlines(tokens)?;
+        let mut expressions = vec![SyntaxTree::expression(tokens)?];
+
+        while tokens.peek()?.kind == TokenKind::Comma {
+            tokens.next()?;
+            SyntaxTree::skip_newlines(tokens)?;
+            if tokens.peek()?.kind == TokenKind::CloseParen { break; }
+            expressions.push(SyntaxTree::expression(tokens)?);
+        }
+
+        Ok(expressions)
     }
 }
 
