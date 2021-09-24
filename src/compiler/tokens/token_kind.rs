@@ -1,6 +1,7 @@
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TokenKind {
     Identifier,
+    Type,
     Number,
     OpenParen,
     CloseParen,
@@ -16,6 +17,8 @@ pub enum TokenKind {
     GreaterOrEqual,
     Less,
     LessOrEqual,
+    Colon,
+    Comma,
     NewLine,
     Function,
     Return,
@@ -26,6 +29,7 @@ impl ToString for TokenKind {
     fn to_string(&self) -> String {
         match self {
             TokenKind::Identifier => "identifier".into(),
+            TokenKind::Type => "type".into(),
             TokenKind::Number => "number".into(),
             TokenKind::OpenParen => "'('".into(),
             TokenKind::CloseParen => "')'".into(),
@@ -41,6 +45,8 @@ impl ToString for TokenKind {
             TokenKind::GreaterOrEqual => "'>='".into(),
             TokenKind::Less => "'<'".into(),
             TokenKind::LessOrEqual => "'<='".into(),
+            TokenKind::Colon => "':'".into(),
+            TokenKind::Comma => "','".into(),
             TokenKind::NewLine => "newline".into(),
             TokenKind::Function => "'fn'".into(),
             TokenKind::Return => "'return'".into(),

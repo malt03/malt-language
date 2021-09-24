@@ -6,6 +6,7 @@ pub(crate) struct TokenConverter {
     tokens_maps: Vec<(usize, HashMap<String, TokenKind>)>,
     newline_chars: HashSet<char>,
     identifier_chars: HashSet<char>,
+    type_chars: HashSet<char>,
     number_chars: HashSet<char>,
     whitespaces: HashSet<char>,
 }
@@ -33,6 +34,8 @@ impl TokenConverter {
             ("=".into(), TokenKind::Assign),
             (">".into(), TokenKind::Greater),
             ("<".into(), TokenKind::Less),
+            (":".into(), TokenKind::Colon),
+            (",".into(), TokenKind::Comma),
         ]);
         
         TokenConverter {
@@ -42,7 +45,8 @@ impl TokenConverter {
                 (1, one),
             ],
             newline_chars: HashSet::from_iter(['\n']),
-            identifier_chars: HashSet::from_iter(vec!['_'..='_', 'a'..='z', 'A'..='Z', '0'..='9'].into_iter().flatten()),
+            identifier_chars: HashSet::from_iter(vec!['_'..='_', 'a'..='z', '0'..='9'].into_iter().flatten()),
+            type_chars: HashSet::from_iter(vec!['a'..='z', 'A'..='Z', '0'..='9'].into_iter().flatten()),
             number_chars: HashSet::from_iter('0'..='9'),
             whitespaces: HashSet::from_iter([' ', '\t']),
         }
@@ -74,6 +78,8 @@ impl TokenConverter {
                 Ok(Token::new(TokenKind::Number, self.take_number(text, cursor), start..*cursor))
             } else if self.identifier_chars.contains(current_char) {
                 Ok(Token::new(TokenKind::Identifier, self.take_identifier(text, cursor), start..*cursor))
+            } else if self.type_chars.contains(current_char) {
+                Ok(Token::new(TokenKind::Type, self.take_type(text, cursor), start..*cursor))
             } else {
                 Err(Error::unexpected_char(start, text))
             }
@@ -95,6 +101,10 @@ impl TokenConverter {
 
     fn take_identifier<'a>(&self, text: &'a str, cursor: &mut usize) -> &'a str {
         TokenConverter::take_while(text, cursor, |c| self.identifier_chars.contains(&c))
+    }
+
+    fn take_type<'a>(&self, text: &'a str, cursor: &mut usize) -> &'a str {
+        TokenConverter::take_while(text, cursor, |c| self.type_chars.contains(&c))
     }
 
     fn take_number<'a>(&self, text: &'a str, cursor: &mut usize) -> &'a str {

@@ -2,6 +2,8 @@ use super::{UnaryOperator, BinaryOperator, LocalValue};
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct FunctionNode<'a> {
+    pub(crate) name: &'a str,
+    pub(crate) arguments: Vec<LocalValue<'a>>,
     pub(crate) local_values: Vec<LocalValue<'a>>,
     pub(crate) statements: Vec<StatementNode<'a>>,
     pub(crate) return_statement: Option<ExpressionNode<'a>>,
