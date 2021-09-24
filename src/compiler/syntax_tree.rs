@@ -8,37 +8,39 @@ use binary_operator::BinaryOperator;
 use unary_operator::UnaryOperator;
 
 pub(crate) use error::Error;
-pub(crate) use syntax_tree::SyntaxTree;
+pub(crate) use syntax_tree::{SyntaxTree, SyntaxTreeNode};
 
 #[cfg(test)]
 mod tests {
     use super::super::PeekableTokens;
-    use super::{SyntaxTree, BinaryOperator};
+    use super::{SyntaxTree, SyntaxTreeNode, BinaryOperator};
 
     #[test]
     fn it_works() {
         assert_eq!(
             SyntaxTree::new(PeekableTokens::new("2 + 3 * (5 - (1 + 4)) / 2")).unwrap(),
-            SyntaxTree::BinaryExpr {
-                lhs: Box::new(SyntaxTree::Value("2")),
-                rhs: Box::new(SyntaxTree::BinaryExpr {
-                    lhs: Box::new(SyntaxTree::BinaryExpr {
-                        lhs: Box::new(SyntaxTree::Value("3")),
-                        rhs: Box::new(SyntaxTree::BinaryExpr {
-                            lhs: Box::new(SyntaxTree::Value("5")),
-                            rhs: Box::new(SyntaxTree::BinaryExpr {
-                                lhs: Box::new(SyntaxTree::Value("1")),
-                                rhs: Box::new(SyntaxTree::Value("4")),
-                                operator: BinaryOperator::Plus,
+            SyntaxTree {
+                root: SyntaxTreeNode::BinaryExpr {
+                    lhs: Box::new(SyntaxTreeNode::Value("2")),
+                    rhs: Box::new(SyntaxTreeNode::BinaryExpr {
+                        lhs: Box::new(SyntaxTreeNode::BinaryExpr {
+                            lhs: Box::new(SyntaxTreeNode::Value("3")),
+                            rhs: Box::new(SyntaxTreeNode::BinaryExpr {
+                                lhs: Box::new(SyntaxTreeNode::Value("5")),
+                                rhs: Box::new(SyntaxTreeNode::BinaryExpr {
+                                    lhs: Box::new(SyntaxTreeNode::Value("1")),
+                                    rhs: Box::new(SyntaxTreeNode::Value("4")),
+                                    operator: BinaryOperator::Plus,
+                                }),
+                                operator: BinaryOperator::Minus,
                             }),
-                            operator: BinaryOperator::Minus,
+                            operator: BinaryOperator::Times,
                         }),
-                        operator: BinaryOperator::Times,
+                        rhs: Box::new(SyntaxTreeNode::Value("2")),
+                        operator: BinaryOperator::Divide,
                     }),
-                    rhs: Box::new(SyntaxTree::Value("2")),
-                    operator: BinaryOperator::Divide,
-                }),
-                operator: BinaryOperator::Plus,
+                    operator: BinaryOperator::Plus,
+                }
             }
         )
     }

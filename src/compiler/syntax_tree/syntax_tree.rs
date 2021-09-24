@@ -2,25 +2,31 @@ use super::{UnaryOperator, BinaryOperator, error::{Result, Error}};
 use super::super::tokens::{PeekableTokens, TokenKind};
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum SyntaxTree<'a> {
+pub(crate) enum SyntaxTreeNode<'a> {
     Value(&'a str),
     UnaryExpr {
-        child: Box<SyntaxTree<'a>>,
+        child: Box<SyntaxTreeNode<'a>>,
         operator: UnaryOperator,
     },
     BinaryExpr {
-        lhs: Box<SyntaxTree<'a>>,
-        rhs: Box<SyntaxTree<'a>>,
+        lhs: Box<SyntaxTreeNode<'a>>,
+        rhs: Box<SyntaxTreeNode<'a>>,
         operator: BinaryOperator,
     },
 }
 
+#[derive(Debug, PartialEq)]
+pub(crate) struct SyntaxTree<'a> {
+    pub(crate) root: SyntaxTreeNode<'a>,
+}
+
 impl<'a> SyntaxTree<'a> {
     pub(crate) fn new(mut tokens: PeekableTokens<'a>) -> Result<'a, SyntaxTree<'a>> {
-        SyntaxTree::expr(&mut tokens)
+        let root = SyntaxTree::expr(&mut tokens)?;
+        Ok(SyntaxTree { root })
     }
     
-    fn expr(tokens: &mut PeekableTokens<'a>) -> Result<'a, SyntaxTree<'a>> {
+    fn expr(tokens: &mut PeekableTokens<'a>) -> Result<'a, SyntaxTreeNode<'a>> {
         let mut tree = SyntaxTree::mul(tokens)?;
         loop {
             let token = tokens.peek()?;
@@ -28,14 +34,14 @@ impl<'a> SyntaxTree<'a> {
                 TokenKind::Plus | TokenKind::Minus => {
                     let token = tokens.next()?;
                     let rhs = SyntaxTree::mul(tokens)?;
-                    tree = SyntaxTree::BinaryExpr { lhs: Box::new(tree), rhs: Box::new(rhs), operator: (&token.kind).into() }
+                    tree = SyntaxTreeNode::BinaryExpr { lhs: Box::new(tree), rhs: Box::new(rhs), operator: (&token.kind).into() }
                 },
                 _ => return Ok(tree),
             }
         }
     }
     
-    fn mul(tokens: &mut PeekableTokens<'a>) -> Result<'a, SyntaxTree<'a>> {
+    fn mul(tokens: &mut PeekableTokens<'a>) -> Result<'a, SyntaxTreeNode<'a>> {
         let mut tree = SyntaxTree::unary(tokens)?;
         
         loop {
@@ -44,14 +50,14 @@ impl<'a> SyntaxTree<'a> {
                 TokenKind::Times | TokenKind::Divide => {
                     let token = tokens.next()?;
                     let rhs = SyntaxTree::unary(tokens)?;
-                    tree = SyntaxTree::BinaryExpr { lhs: Box::new(tree), rhs: Box::new(rhs), operator: (&token.kind).into() };
+                    tree = SyntaxTreeNode::BinaryExpr { lhs: Box::new(tree), rhs: Box::new(rhs), operator: (&token.kind).into() };
                 },
                 _ => return Ok(tree),
             }
         }
     }
 
-    fn primary(tokens: &mut PeekableTokens<'a>) -> Result<'a, SyntaxTree<'a>> {
+    fn primary(tokens: &mut PeekableTokens<'a>) -> Result<'a, SyntaxTreeNode<'a>> {
         let token = tokens.peek()?;
         match token.kind {
             TokenKind::OpenParen => {
@@ -64,7 +70,7 @@ impl<'a> SyntaxTree<'a> {
                     Ok(tree)
                 }
             },
-            TokenKind::Number => Ok(SyntaxTree::Value(tokens.next()?.value)),
+            TokenKind::Number => Ok(SyntaxTreeNode::Value(tokens.next()?.value)),
             _ => {
                 let token = tokens.next()?;
                 Err(Error::unexpected_token([TokenKind::OpenParen, TokenKind::Number], tokens, &token))
@@ -72,7 +78,7 @@ impl<'a> SyntaxTree<'a> {
         }
     }
 
-    fn unary(tokens: &mut PeekableTokens<'a>) -> Result<'a, SyntaxTree<'a>> {
+    fn unary(tokens: &mut PeekableTokens<'a>) -> Result<'a, SyntaxTreeNode<'a>> {
         let token = tokens.peek()?;
         match token.kind {
             TokenKind::Plus => {
@@ -81,7 +87,7 @@ impl<'a> SyntaxTree<'a> {
             },
             TokenKind::Minus => {
                 tokens.next()?;
-                Ok(SyntaxTree::UnaryExpr {
+                Ok(SyntaxTreeNode::UnaryExpr {
                     child: Box::new(SyntaxTree::primary(tokens)?),
                     operator: UnaryOperator::Minus,
                 })

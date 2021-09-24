@@ -1,22 +1,26 @@
 use std::io;
-use super::{SyntaxTree, BinaryOperator, UnaryOperator};
+use super::{SyntaxTree, SyntaxTreeNode, BinaryOperator, UnaryOperator};
 
 impl<'a> SyntaxTree<'a> {
-    pub(crate) fn write_wasm<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
-        match self {
-            SyntaxTree::Value(value) => {
+    pub(crate) fn write_wasm<W: io::Write>(&self,  writer: &mut W) -> io::Result<()> {
+        self.write_wasm_node(&self.root, writer)
+    }
+
+    fn write_wasm_node<W: io::Write>(&self, node: &SyntaxTreeNode<'a>, writer: &mut W) -> io::Result<()> {
+        match node {
+            SyntaxTreeNode::Value(value) => {
                 writer.write_all(format!("(i32.const {})", value).as_bytes())?;
             },
-            SyntaxTree::UnaryExpr { child, operator } => {
+            SyntaxTreeNode::UnaryExpr { child, operator } => {
                 match operator {
                     UnaryOperator::Minus => {
                         writer.write_all(b"(i32.sub (i32.const 0)")?;
-                        child.write_wasm(writer)?;
+                        self.write_wasm_node(child, writer)?;
                         writer.write_all(b")")?;
                     },
                 }
             },
-            SyntaxTree::BinaryExpr { lhs, rhs, operator } => {
+            SyntaxTreeNode::BinaryExpr { lhs, rhs, operator } => {
                 let instruction: &[u8] = match operator {
                     BinaryOperator::Plus => b"i32.add",
                     BinaryOperator::Minus => b"i32.sub",
@@ -25,8 +29,8 @@ impl<'a> SyntaxTree<'a> {
                 };
                 writer.write_all(b"(")?;
                 writer.write_all(instruction)?;
-                lhs.write_wasm(writer)?;
-                rhs.write_wasm(writer)?;
+                self.write_wasm_node(lhs, writer)?;
+                self.write_wasm_node(rhs, writer)?;
                 writer.write_all(b")")?;
             },
         }
