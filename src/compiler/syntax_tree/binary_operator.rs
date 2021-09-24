@@ -4,7 +4,7 @@ use super::super::tokens::TokenKind;
 pub(crate) enum BinaryOperator {
     Plus,
     Minus,
-    Times,
+    Multiply,
     Divide,
 }
 
@@ -13,7 +13,7 @@ impl From<&TokenKind> for BinaryOperator {
         match kind {
             TokenKind::Plus => BinaryOperator::Plus,
             TokenKind::Minus => BinaryOperator::Minus,
-            TokenKind::Times => BinaryOperator::Times,
+            TokenKind::Multiply => BinaryOperator::Multiply,
             TokenKind::Divide => BinaryOperator::Divide,
             _ => panic!("unexpected")
         }

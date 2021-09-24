@@ -1,0 +1,22 @@
+program    = statement*
+statement  = expression '\n' | 'return' expression '\n' | assign '\n'
+assign     = identifier '=' expression
+expression = equality
+equality   = relational ('==' relational | '!=' relational)?
+relational = add ('<' add | '<=' add | '>' add | '>=' add)?
+add        = multiply ('+' multiply | '-' multiply)*
+multiply   = unary ('*' unary | '/' unary)*
+unary      = ('+' | '-')? primary
+primary    = num | identifier | '(' expression ')'
+
+
+program          = statement* return_statement?
+statement        = end_of_statement | assign
+assign           = identifier '=' end_of_statement
+return_statement = 'return' end_of_statement
+end_of_statement = expression '\n'
+expression       = add
+add              = multiply ('+' multiply | '-' multiply)*
+multiply         = unary ('*' unary | '/' unary)*
+unary            = ('+' | '-')? primary
+primary          = num | identifier | '(' expression ')'

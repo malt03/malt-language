@@ -2,7 +2,7 @@ use super::super::tokens::{self, PeekableTokens, TokenKind, Token};
 
 #[derive(Debug)]
 pub enum Error<'a> {
-    UnexpectedToken { expected_kinds: Vec<TokenKind>, cursor: usize, text: &'a str },
+    UnexpectedToken { expected_kinds: Vec<TokenKind>, kind: TokenKind, cursor: usize, text: &'a str },
     Tokens(tokens::Error<'a>),
 }
 
@@ -20,6 +20,7 @@ impl<'a> Error<'a> {
     ) -> Error<'a> {
         Error::UnexpectedToken {
             expected_kinds: expected_kinds.into_iter().collect(),
+            kind: token.kind,
             cursor: token.range.start,
             text: tokens.text(),
         }
@@ -29,7 +30,7 @@ impl<'a> Error<'a> {
 impl<'a> std::fmt::Display for Error<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::UnexpectedToken { expected_kinds, cursor, text } => {
+            Error::UnexpectedToken { expected_kinds, kind, cursor, text } => {
                 let lines = text.split('\n');
                 let mut read_len: usize = 0;
                 for (line_number, line) in lines.enumerate() {
@@ -45,7 +46,8 @@ impl<'a> std::fmt::Display for Error<'a> {
                         .join(" / ");
 
                     f.write_fmt(format_args!("Unexpected token found. line: {}\n", line_number + 1))?;
-                    f.write_fmt(format_args!("Expected: {}\n\n", expected_kinds))?;
+                    f.write_fmt(format_args!("Expected: {}\n", expected_kinds))?;
+                    f.write_fmt(format_args!("Found: {}\n\n", kind.to_string()))?;
                     f.write_fmt(format_args!("{}\n", line))?;
                     f.write_fmt(format_args!("{}^\n", " ".repeat(line_cursor - 1)))?;
                     break;

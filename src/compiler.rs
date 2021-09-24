@@ -31,7 +31,6 @@ pub type Result<'a, T> = std::result::Result<T, Error<'a>>;
 pub fn compile<'a, W: io::Write>(text: &'a str, mut writer: W) -> Result<'a, ()> {
     writer.write_all(br#"(module
 (import "wasi_unstable" "proc_exit" (func $_exit (param i32)))
-(func $_start
 "#)?;
 
     let tokens = PeekableTokens::new(&text);
@@ -39,6 +38,8 @@ pub fn compile<'a, W: io::Write>(text: &'a str, mut writer: W) -> Result<'a, ()>
     syntax_tree.write_wasm(&mut writer)?;
 
     writer.write_all(br#"
+(func $_start
+call $main
 call $_exit)
 (memory 0)
 (export "memory" (memory 0))

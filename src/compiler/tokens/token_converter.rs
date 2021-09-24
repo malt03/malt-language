@@ -12,17 +12,23 @@ pub(crate) struct TokenConverter {
 
 impl TokenConverter {
     pub(crate) fn new() -> Self {
+        let six: HashMap::<String, TokenKind> = HashMap::from_iter([
+            ("return".into(), TokenKind::Return),
+        ]);
         let two: HashMap::<String, TokenKind> = HashMap::from_iter([
             ("==".into(), TokenKind::Equal),
             (">=".into(), TokenKind::GreaterOrEqual),
             ("<=".into(), TokenKind::LessOrEqual),
+            ("fn".into(), TokenKind::Function),
         ]);
         let one: HashMap::<String, TokenKind> = HashMap::from_iter([
             ("(".into(), TokenKind::OpenParen),
             (")".into(), TokenKind::CloseParen),
+            ("{".into(), TokenKind::OpenBrace),
+            ("}".into(), TokenKind::CloseBrace),
             ("+".into(), TokenKind::Plus),
             ("-".into(), TokenKind::Minus),
-            ("*".into(), TokenKind::Times),
+            ("*".into(), TokenKind::Multiply),
             ("/".into(), TokenKind::Divide),
             ("=".into(), TokenKind::Assign),
             (">".into(), TokenKind::Greater),
@@ -31,6 +37,7 @@ impl TokenConverter {
         
         TokenConverter {
             tokens_maps: vec![
+                (6, six),
                 (2, two),
                 (1, one),
             ],

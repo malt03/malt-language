@@ -103,7 +103,7 @@ mod tests {
     fn it_works() {
         test("aa * bbb\nprint(3)", [
             Token::new(TokenKind::Identifier, "aa", 0..2),
-            Token::new(TokenKind::Times, "*", 3..4),
+            Token::new(TokenKind::Multiply, "*", 3..4),
             Token::new(TokenKind::Identifier, "bbb", 5..8),
             Token::new(TokenKind::NewLine, "\n", 8..9),
             Token::new(TokenKind::Identifier, "print", 9..14),
