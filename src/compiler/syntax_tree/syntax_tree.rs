@@ -143,7 +143,15 @@ impl<'a> SyntaxTree<'a> {
                         })
                     }
                 },
-                TokenKind::CloseBrace => return Ok(FunctionBody { local_values, statements, return_: None }),
+                TokenKind::CloseBrace => {
+                    return if return_type == "Void" {
+                        Ok(FunctionBody { local_values, statements, return_: None })
+                    } else {
+                        let token = tokens.next()?;
+                        Err(Error::unexpected_token([TokenKind::Return], tokens, &token))
+                    }
+                    
+                },
                 _ => statements.push(SyntaxTree::statement(tokens, &mut local_values)?),
             }
         }
