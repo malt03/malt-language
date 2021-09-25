@@ -1,7 +1,7 @@
 mod tokens;
 mod syntax_tree;
 
-use std::io;
+use std::{fs, io};
 
 use tokens::PeekableTokens;
 use syntax_tree::SyntaxTree;
@@ -37,10 +37,12 @@ pub fn compile<'a, W: io::Write>(text: &'a str, mut writer: W) -> Result<'a, ()>
     let syntax_tree = SyntaxTree::new(tokens)?;
     syntax_tree.write_wasm(&mut writer)?;
 
+    let malloc = fs::read("./lib/malloc.wat")?;
+    writer.write_all(malloc.as_slice())?;
     writer.write_all(br#"(func $_start
 call $main
 call $_exit)
-(memory 0)
+(memory 2)
 (export "memory" (memory 0))
 (export "_start" (func $_start)))"#)?;
     writer.flush()?;
