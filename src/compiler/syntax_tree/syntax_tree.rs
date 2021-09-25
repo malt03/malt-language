@@ -1,4 +1,4 @@
-use super::{ModuleNode, ExpressionNode, FunctionNode, StatementNode, UnaryOperator, error::{Result, Error}, LocalValue};
+use super::{ModuleNode, ExpressionNode, FunctionNode, StatementNode, Return, UnaryOperator, error::{Result, Error}, LocalValue};
 use super::super::tokens::{Token, PeekableTokens, TokenKind};
 
 #[derive(Debug, PartialEq)]
@@ -8,7 +8,7 @@ pub(crate) struct SyntaxTree<'a> {
 
 struct FunctionBody<'a> {
     statements: Vec<StatementNode<'a>>,
-    return_statement: Option<ExpressionNode<'a>>,
+    return_: Option<Return<'a>>,
     local_values: Vec<LocalValue<'a>>,
 }
 
@@ -57,13 +57,20 @@ impl<'a> SyntaxTree<'a> {
 
         let arguments = SyntaxTree::arguments(tokens)?;
 
+        let return_type = if tokens.peek()?.kind == TokenKind::Colon {
+            tokens.next()?;
+            let token = tokens.next()?;
+            SyntaxTree::confirm_kind(TokenKind::Type, &token, tokens)?;
+            token.value
+        } else { "Void" };
+
         SyntaxTree::skip_newlines(tokens)?;
         SyntaxTree::confirm_kind(TokenKind::CloseParen, &tokens.next()?, tokens)?;
         SyntaxTree::skip_newlines(tokens)?;
         SyntaxTree::confirm_kind(TokenKind::OpenBrace, &tokens.next()?, tokens)?;
         SyntaxTree::skip_newlines(tokens)?;
 
-        let body = SyntaxTree::function_body(tokens)?;
+        let body = SyntaxTree::function_body(tokens, return_type)?;
 
         SyntaxTree::confirm_kind(TokenKind::CloseBrace, &tokens.next()?, tokens)?;
         SyntaxTree::confirm_kind(TokenKind::NewLine, &tokens.next()?, tokens)?;
@@ -73,7 +80,7 @@ impl<'a> SyntaxTree<'a> {
             arguments,
             local_values: body.local_values,
             statements: body.statements,
-            return_statement: body.return_statement,
+            return_: body.return_,
         })
     }
 
@@ -102,19 +109,26 @@ impl<'a> SyntaxTree<'a> {
         Ok(LocalValue { name, type_ })
     }
 
-    fn function_body(tokens: &mut PeekableTokens<'a>) -> Result<'a, FunctionBody<'a>> {
+    fn function_body(tokens: &mut PeekableTokens<'a>, return_type: &'a str) -> Result<'a, FunctionBody<'a>> {
         let mut statements: Vec<StatementNode<'a>> = Vec::new();
         let mut local_values: Vec<LocalValue<'a>> = Vec::new();
 
         loop {
             let token = tokens.peek()?;
             match token.kind {
-                TokenKind::Return => return Ok(FunctionBody {
-                    local_values,
-                    statements,
-                    return_statement: Some(SyntaxTree::return_statement(tokens)?),
-                }),
-                TokenKind::EOF => return Ok(FunctionBody { local_values, statements, return_statement: None }),
+                TokenKind::Return => {
+                    return if return_type == "Void" {
+                        let token = tokens.next()?;
+                        Err(Error::unexpected_token([TokenKind::CloseBrace], tokens, &token))
+                    } else {
+                        Ok(FunctionBody {
+                            local_values,
+                            statements,
+                            return_: Some(Return { expression: SyntaxTree::return_statement(tokens)?, type_: return_type }),
+                        })
+                    }
+                },
+                TokenKind::CloseBrace => return Ok(FunctionBody { local_values, statements, return_: None }),
                 _ => statements.push(SyntaxTree::statement(tokens, &mut local_values)?),
             }
         }

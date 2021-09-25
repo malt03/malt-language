@@ -18,7 +18,7 @@ impl<'a> SyntaxTree<'a> {
         for argument in &function.arguments {
             writer.write_fmt(format_args!("(param ${} i32)", argument.name))?;
         }
-        if function.return_statement.is_some() {
+        if function.return_.is_some() {
             writer.write_all(b"(result i32)")?;
         }
         for local_value in &function.local_values {
@@ -28,8 +28,8 @@ impl<'a> SyntaxTree<'a> {
         for statement in &function.statements {
             self.write_statement(writer, statement)?
         }
-        if let Some(expression) = &function.return_statement {
-            self.write_expression(writer, expression)?
+        if let Some(return_) = &function.return_ {
+            self.write_expression(writer, &return_.expression)?
         }
         writer.write_all(b")\n")?;
         Ok(())

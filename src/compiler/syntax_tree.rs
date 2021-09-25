@@ -11,5 +11,5 @@ use unary_operator::UnaryOperator;
 
 use local_value::LocalValue;
 pub(crate) use error::Error;
-pub(crate) use syntax_tree_node::{FunctionNode, StatementNode, ExpressionNode, ModuleNode};
+pub(crate) use syntax_tree_node::{FunctionNode, StatementNode, ExpressionNode, ModuleNode, Return};
 pub(crate) use syntax_tree::SyntaxTree;

@@ -1,5 +1,5 @@
 module           = { {'\n'} function }
-function         = 'fn' identifier '(' {'\n'} arguments {'\n'} ')' {'\n'} '{' {'\n'} function_body '}' '\n'
+function         = 'fn' identifier '(' {'\n'} arguments {'\n'} ')' (':' type)? {'\n'} '{' {'\n'} function_body '}' '\n'
 arguments        = (value_definition { ',' {'\n'} value_definition })?
 value_definition = identifier ':' type
 function_body    = { statement } return_statement?
