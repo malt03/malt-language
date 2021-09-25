@@ -54,11 +54,12 @@ fn line_error<Handler: Fn(usize, &mut std::fmt::Formatter) -> std::fmt::Result>(
             read_len += len + 1;
             continue;
         }
+        handler(line_number, f)?;
+
         let line_cursor = *cursor - read_len;
         f.write_fmt(format_args!("{}\n", line))?;
         f.write_fmt(format_args!("{}^\n", " ".repeat(line_cursor)))?;
 
-        handler(line_number, f)?;
         break;
     }
     Ok(())

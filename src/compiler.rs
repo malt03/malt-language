@@ -31,7 +31,6 @@ impl<'a> std::fmt::Display for Error<'a> {
     }
 }
 
-
 pub type Result<'a, T> = std::result::Result<T, Error<'a>>;
 
 pub fn compile<'a, W: io::Write>(text: &'a str, mut writer: W) -> Result<'a, ()> {

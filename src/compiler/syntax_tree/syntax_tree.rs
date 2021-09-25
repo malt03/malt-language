@@ -60,6 +60,8 @@ impl<'a> SyntaxTree<'a> {
         SyntaxTree::skip_newlines(tokens)?;
 
         let (arguments, arguments_map) = SyntaxTree::arguments(tokens)?;
+        SyntaxTree::skip_newlines(tokens)?;
+        SyntaxTree::confirm_kind(TokenKind::CloseParen, &tokens.next()?, tokens)?;
 
         let return_type = if tokens.peek()?.kind == TokenKind::Colon {
             tokens.next()?;
@@ -68,8 +70,6 @@ impl<'a> SyntaxTree<'a> {
             token.value
         } else { "Void" };
 
-        SyntaxTree::skip_newlines(tokens)?;
-        SyntaxTree::confirm_kind(TokenKind::CloseParen, &tokens.next()?, tokens)?;
         SyntaxTree::skip_newlines(tokens)?;
         SyntaxTree::confirm_kind(TokenKind::OpenBrace, &tokens.next()?, tokens)?;
         SyntaxTree::skip_newlines(tokens)?;
