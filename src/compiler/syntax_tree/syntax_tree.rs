@@ -1,6 +1,6 @@
 use std::{collections::HashMap, iter::FromIterator};
 
-use super::{ModuleNode, ExpressionNode, FunctionNode, StatementNode, Return, UnaryOperator, error::{Result, Error}, LocalValue};
+use super::{ExpressionNode, FunctionNode, LocalValue, ModuleNode, Node, Return, StatementNode, UnaryOperator, binary_operator::BinaryOperator, error::{Result, Error}};
 use super::super::tokens::{Token, PeekableTokens, TokenKind};
 
 #[derive(Debug, PartialEq)]
@@ -9,8 +9,8 @@ pub(crate) struct SyntaxTree<'a> {
 }
 
 struct FunctionBody<'a> {
-    statements: Vec<StatementNode<'a>>,
-    return_: Option<Return<'a>>,
+    statements: Vec< StatementNode<'a>>,
+    return_: Option<Node<'a, Return<'a>>>,
     local_values: HashMap<&'a str, LocalValue<'a>>,
 }
 
@@ -36,20 +36,22 @@ impl<'a> SyntaxTree<'a> {
     }
 
     fn module(tokens: &mut PeekableTokens<'a>) -> Result<'a, ModuleNode<'a>> {
-        let mut functions: HashMap<&'a str, FunctionNode<'a>> = HashMap::new();
+        let mut functions: HashMap<&'a str, Node<'a, FunctionNode<'a>>> = HashMap::new();
         loop {
             SyntaxTree::skip_newlines(tokens)?;
 
-            let (function, name_token) = SyntaxTree::function(tokens)?;
-            if functions.contains_key(function.name) { return Err(Error::duplicated_name(function.name, tokens, &name_token)); }
-            functions.insert(function.name, function);
+            let function = SyntaxTree::function(tokens)?;
+            if functions.contains_key(function.entity.name) {
+                return Err(Error::duplicated_name(function.entity.name, tokens, &function.token));
+            }
+            functions.insert(function.entity.name, function);
 
             let token = tokens.peek()?;
             if token.kind == TokenKind::EOF { return Ok(ModuleNode{ functions }); }
         }
     }
 
-    fn function(tokens: &mut PeekableTokens<'a>) -> Result<'a, (FunctionNode<'a>, Token<'a>)> {
+    fn function(tokens: &mut PeekableTokens<'a>) -> Result<'a, Node<'a, FunctionNode<'a>>> {
         SyntaxTree::confirm_kind(TokenKind::Function, &tokens.next()?, tokens)?;
 
         let name_token = tokens.next()?;
@@ -79,7 +81,7 @@ impl<'a> SyntaxTree<'a> {
         SyntaxTree::confirm_kind(TokenKind::CloseBrace, &tokens.next()?, tokens)?;
         SyntaxTree::confirm_kind(TokenKind::NewLine, &tokens.next()?, tokens)?;
         
-        Ok((
+        Ok(Node::new(
             FunctionNode {
                 name,
                 arguments,
@@ -136,10 +138,14 @@ impl<'a> SyntaxTree<'a> {
                         let token = tokens.next()?;
                         Err(Error::unexpected_token([TokenKind::CloseBrace], tokens, &token))
                     } else {
+                        let token = tokens.next()?;
+                        SyntaxTree::confirm_kind(TokenKind::Return, &token, tokens)?;
+                        let expression = SyntaxTree::end_of_statement(tokens)?;
+                
                         Ok(FunctionBody {
                             local_values,
                             statements,
-                            return_: Some(Return { expression: SyntaxTree::return_statement(tokens)?, type_: return_type }),
+                            return_: Some(Node::new(Return { expression, type_: return_type }, token)),
                         })
                     }
                 },
@@ -157,7 +163,10 @@ impl<'a> SyntaxTree<'a> {
         }
     }
 
-    fn statement(tokens: &mut PeekableTokens<'a>, local_values: &mut HashMap<&'a str, LocalValue<'a>>) -> Result<'a, StatementNode<'a>> {
+    fn statement(
+        tokens: &mut PeekableTokens<'a>,
+        local_values: &mut HashMap<&'a str, LocalValue<'a>>,
+    ) -> Result<'a, StatementNode<'a>> {
         let token = tokens.peek()?;
         match token.kind {
             TokenKind::Identifier => SyntaxTree::assign(tokens, local_values),
@@ -166,36 +175,31 @@ impl<'a> SyntaxTree<'a> {
     }
 
     fn assign(tokens: &mut PeekableTokens<'a>, local_values: &mut HashMap<&'a str, LocalValue<'a>>) -> Result<'a, StatementNode<'a>> {
-        let (value, token) = SyntaxTree::value_definition(tokens)?;
+        let (value, value_token) = SyntaxTree::value_definition(tokens)?;
 
         SyntaxTree::confirm_kind(TokenKind::Assign, &tokens.next()?, tokens)?;
 
         let expression = SyntaxTree::end_of_statement(tokens)?;
-        let statement = StatementNode::Assign(value.name, expression);
         
-        if local_values.contains_key(value.name) { return Err(Error::duplicated_name(value.name, tokens, &token)); }
+        if local_values.contains_key(value.name) { return Err(Error::duplicated_name(value.name, tokens, &value_token)); }
+
+        let statement = StatementNode::Assign(Node::new(value.name, value_token), expression);
         local_values.insert(value.name, value);
 
         Ok(statement)
     }
 
-    fn return_statement(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
-        SyntaxTree::confirm_kind(TokenKind::Return, &tokens.next()?, tokens)?;
-        
-        SyntaxTree::end_of_statement(tokens)
-    }
-
-    fn end_of_statement(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
+    fn end_of_statement(tokens: &mut PeekableTokens<'a>) -> Result<'a, Node<'a, ExpressionNode<'a>>> {
         let expression = SyntaxTree::expression(tokens)?;
         SyntaxTree::confirm_kind(TokenKind::NewLine, &tokens.next()?, tokens)?;
         Ok(expression)
     }
 
-    fn expression(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
+    fn expression(tokens: &mut PeekableTokens<'a>) -> Result<'a, Node<'a, ExpressionNode<'a>>> {
         SyntaxTree::add(tokens)
     }
 
-    fn add(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
+    fn add(tokens: &mut PeekableTokens<'a>) -> Result<'a, Node<'a, ExpressionNode<'a>>> {
         let mut expression = SyntaxTree::multiply(tokens)?;
         loop {
             let token = tokens.peek()?;
@@ -204,14 +208,19 @@ impl<'a> SyntaxTree<'a> {
                     let token = tokens.next()?;
                     SyntaxTree::skip_newlines(tokens)?;
                     let rhs = SyntaxTree::multiply(tokens)?;
-                    expression = ExpressionNode::BinaryExpr { lhs: Box::new(expression), rhs: Box::new(rhs), operator: (&token.kind).into() }
+                    let operator: BinaryOperator = (&token.kind).into();
+                    expression = Node::new(ExpressionNode::BinaryExpr {
+                        lhs: Box::new(expression),
+                        rhs: Box::new(rhs),
+                        operator,
+                    }, token);
                 },
                 _ => return Ok(expression),
             }
         }
     }
     
-    fn multiply(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
+    fn multiply(tokens: &mut PeekableTokens<'a>) -> Result<'a, Node<'a, ExpressionNode<'a>>> {
         let mut expression = SyntaxTree::unary(tokens)?;
         
         loop {
@@ -221,14 +230,19 @@ impl<'a> SyntaxTree<'a> {
                     let token = tokens.next()?;
                     SyntaxTree::skip_newlines(tokens)?;
                     let rhs = SyntaxTree::unary(tokens)?;
-                    expression = ExpressionNode::BinaryExpr { lhs: Box::new(expression), rhs: Box::new(rhs), operator: (&token.kind).into() };
+                    let operator: BinaryOperator = (&token.kind).into();
+                    expression = Node::new(ExpressionNode::BinaryExpr {
+                        lhs: Box::new(expression),
+                        rhs: Box::new(rhs),
+                        operator,
+                    }, token);
                 },
                 _ => return Ok(expression),
             }
         }
     }
 
-    fn unary(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
+    fn unary(tokens: &mut PeekableTokens<'a>) -> Result<'a, Node<'a, ExpressionNode<'a>>> {
         let token = tokens.peek()?;
         match token.kind {
             TokenKind::Plus => {
@@ -236,17 +250,17 @@ impl<'a> SyntaxTree<'a> {
                 SyntaxTree::primary(tokens)
             },
             TokenKind::Minus => {
-                tokens.next()?;
-                Ok(ExpressionNode::UnaryExpr {
+                let token = tokens.next()?;
+                Ok(Node::new(ExpressionNode::UnaryExpr {
                     child: Box::new(SyntaxTree::primary(tokens)?),
                     operator: UnaryOperator::Minus,
-                })
+                }, token))
             },
             _ => SyntaxTree::primary(tokens),
         }
     }
 
-    fn primary(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
+    fn primary(tokens: &mut PeekableTokens<'a>) -> Result<'a, Node<'a, ExpressionNode<'a>>> {
         let token = tokens.peek()?;
         match token.kind {
             TokenKind::OpenParen => {
@@ -259,13 +273,16 @@ impl<'a> SyntaxTree<'a> {
 
                 Ok(expression)
             },
-            TokenKind::Number => Ok(ExpressionNode::Value(tokens.next()?.value)),
+            TokenKind::Number => {
+                let token = tokens.next()?;
+                Ok(Node::new(ExpressionNode::Value(token.value), token))
+            },
             TokenKind::Identifier => {
-                let name = tokens.next()?.value;
+                let token = tokens.next()?;
                 if tokens.peek()?.kind == TokenKind::OpenParen {
-                    Ok(SyntaxTree::function_call(tokens, name)?)
+                    Ok(SyntaxTree::function_call(tokens, token)?)
                 }  else {
-                    Ok(ExpressionNode::Identifier(name))
+                    Ok(Node::new(ExpressionNode::Identifier(token.value), token))
                 }
             },
             _ => {
@@ -275,9 +292,9 @@ impl<'a> SyntaxTree<'a> {
         }
     }
 
-    fn function_call(tokens: &mut PeekableTokens<'a>, name: &'a str) -> Result<'a, ExpressionNode<'a>> {
+    fn function_call(tokens: &mut PeekableTokens<'a>, token: Token<'a>) -> Result<'a, Node<'a, ExpressionNode<'a>>> {
         SyntaxTree::confirm_kind(TokenKind::OpenParen, &tokens.next()?, tokens)?;
-        let arguments: Vec<ExpressionNode<'a>> = if tokens.peek()?.kind == TokenKind::CloseParen {
+        let arguments: Vec<Node<'a, ExpressionNode<'a>>> = if tokens.peek()?.kind == TokenKind::CloseParen {
             tokens.next()?;
             Vec::new()
         } else {
@@ -286,10 +303,10 @@ impl<'a> SyntaxTree<'a> {
             arguments
         };
         
-        Ok(ExpressionNode::FunctionCall { name, arguments })
+        Ok(Node::new(ExpressionNode::FunctionCall { name: token.value, arguments }, token))
     }
 
-    fn call_arguments(tokens: &mut PeekableTokens<'a>) -> Result<'a, Vec<ExpressionNode<'a>>> {
+    fn call_arguments(tokens: &mut PeekableTokens<'a>) -> Result<'a, Vec<Node<'a, ExpressionNode<'a>>>> {
         SyntaxTree::skip_newlines(tokens)?;
         let mut expressions = vec![SyntaxTree::expression(tokens)?];
 

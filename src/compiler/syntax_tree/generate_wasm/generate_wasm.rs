@@ -9,7 +9,7 @@ impl<'a> SyntaxTree<'a> {
 
     fn write_module<W: io::Write>(&self, writer: &mut W, program: &ModuleNode<'a>) -> Result<'a, ()> {
         for (_, function) in &program.functions {
-            self.write_function(writer, function)?
+            self.write_function(writer, &function.entity)?
         }
         Ok(())
     }
@@ -30,7 +30,7 @@ impl<'a> SyntaxTree<'a> {
             self.write_statement(writer, statement)?
         }
         if let Some(return_) = &function.return_ {
-            self.write_expression(writer, &return_.expression)?
+            self.write_expression(writer, &return_.entity.expression.entity)?
         }
         writer.write_all(b")\n")?;
         Ok(())
@@ -38,10 +38,10 @@ impl<'a> SyntaxTree<'a> {
 
     fn write_statement<W: io::Write>(&self, writer: &mut W, statement: &StatementNode<'a>) -> Result<'a, ()> {
         match statement {
-            StatementNode::Expression(expression) => self.write_expression(writer, expression)?,
+            StatementNode::Expression(expression) => self.write_expression(writer, &expression.entity)?,
             StatementNode::Assign(name, expression) => {
-                writer.write_fmt(format_args!("(local.set ${}", name))?;
-                self.write_expression(writer, expression)?;
+                writer.write_fmt(format_args!("(local.set ${}", name.entity))?;
+                self.write_expression(writer, &expression.entity)?;
                 writer.write_all(b")")?;
             },
         }
@@ -60,7 +60,7 @@ impl<'a> SyntaxTree<'a> {
             ExpressionNode::FunctionCall { name, arguments } => {
                 writer.write_fmt(format_args!("(call ${} ", name))?;
                 for argument in arguments {
-                    self.write_expression(writer, argument)?;
+                    self.write_expression(writer, &argument.entity)?;
                 }
                 writer.write_all(b")")?;
             },
@@ -68,7 +68,7 @@ impl<'a> SyntaxTree<'a> {
                 match operator {
                     UnaryOperator::Minus => {
                         writer.write_all(b"(i32.sub (i32.const 0)")?;
-                        self.write_expression(writer, child)?;
+                        self.write_expression(writer, &child.entity)?;
                         writer.write_all(b")")?;
                     },
                 }
@@ -82,8 +82,8 @@ impl<'a> SyntaxTree<'a> {
                 };
                 writer.write_all(b"(")?;
                 writer.write_all(instruction)?;
-                self.write_expression(writer, lhs)?;
-                self.write_expression(writer, rhs)?;
+                self.write_expression(writer, &lhs.entity)?;
+                self.write_expression(writer, &rhs.entity)?;
                 writer.write_all(b")")?;
             },
         }

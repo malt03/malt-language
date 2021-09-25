@@ -1,16 +1,28 @@
 use std::collections::HashMap;
 
 use super::{UnaryOperator, BinaryOperator, LocalValue};
+use super::super::tokens::Token;
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct Node<'a, T> {
+    pub(crate) token: Token<'a>,
+    pub(crate) entity: T,
+}
+impl<'a, T>  Node<'a, T> {
+    pub(crate) fn new(entity: T, token: Token<'a>) -> Node<'a, T> {
+        Node { token, entity }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct ModuleNode<'a> {
-    pub(crate) functions: HashMap<&'a str, FunctionNode<'a>>,
+    pub(crate) functions: HashMap<&'a str, Node<'a, FunctionNode<'a>>>,
 }
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Return<'a> {
     pub(crate) type_: &'a str,
-    pub(crate) expression: ExpressionNode<'a>,
+    pub(crate) expression: Node<'a, ExpressionNode<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -20,13 +32,13 @@ pub(crate) struct FunctionNode<'a> {
     pub(crate) arguments_map: HashMap<&'a str, LocalValue<'a>>,
     pub(crate) local_values: HashMap<&'a str, LocalValue<'a>>,
     pub(crate) statements: Vec<StatementNode<'a>>,
-    pub(crate) return_: Option<Return<'a>>,
+    pub(crate) return_: Option<Node<'a, Return<'a>>>,
 }
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum StatementNode<'a> {
-    Expression(ExpressionNode<'a>),
-    Assign(&'a str, ExpressionNode<'a>),
+    Expression(Node<'a, ExpressionNode<'a>>),
+    Assign(Node<'a, &'a str>, Node<'a, ExpressionNode<'a>>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -35,15 +47,15 @@ pub(crate) enum ExpressionNode<'a> {
     Value(&'a str),
     FunctionCall {
         name: &'a str,
-        arguments: Vec<ExpressionNode<'a>>,
+        arguments: Vec<Node<'a, ExpressionNode<'a>>>,
     },
     UnaryExpr {
-        child: Box<ExpressionNode<'a>>,
+        child: Box<Node<'a, ExpressionNode<'a>>>,
         operator: UnaryOperator,
     },
     BinaryExpr {
-        lhs: Box<ExpressionNode<'a>>,
-        rhs: Box<ExpressionNode<'a>>,
+        lhs: Box<Node<'a, ExpressionNode<'a>>>,
+        rhs: Box<Node<'a, ExpressionNode<'a>>>,
         operator: BinaryOperator,
     },
 }
