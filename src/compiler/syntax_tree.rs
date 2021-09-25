@@ -4,7 +4,7 @@ mod unary_operator;
 mod binary_operator;
 mod syntax_tree_node;
 mod syntax_tree;
-mod generate_wasm;
+pub(crate) mod generate_wasm;
 
 use binary_operator::BinaryOperator;
 use unary_operator::UnaryOperator;

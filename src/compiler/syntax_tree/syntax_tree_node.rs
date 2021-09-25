@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use super::{UnaryOperator, BinaryOperator, LocalValue};
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct ModuleNode<'a> {
-    pub(crate) functions: Vec<FunctionNode<'a>>,
+    pub(crate) functions: HashMap<&'a str, FunctionNode<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -15,7 +17,8 @@ pub(crate) struct Return<'a> {
 pub(crate) struct FunctionNode<'a> {
     pub(crate) name: &'a str,
     pub(crate) arguments: Vec<LocalValue<'a>>,
-    pub(crate) local_values: Vec<LocalValue<'a>>,
+    pub(crate) arguments_map: HashMap<&'a str, LocalValue<'a>>,
+    pub(crate) local_values: HashMap<&'a str, LocalValue<'a>>,
     pub(crate) statements: Vec<StatementNode<'a>>,
     pub(crate) return_: Option<Return<'a>>,
 }
