@@ -1,7 +1,7 @@
 use std::ops::Range;
 use super::TokenKind;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct Token<'a> {
     pub(crate) kind: TokenKind,
     pub(crate) value: &'a str,

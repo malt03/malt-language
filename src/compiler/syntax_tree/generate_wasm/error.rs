@@ -1,9 +1,17 @@
 use std::io;
 
+use super::super::super::tokens::Token;
+
 #[derive(Debug)]
 pub enum Error<'a> {
     FunctionNotFound { name: &'a str, cursor: usize, text: &'a str },
     IO(io::Error),
+}
+
+impl<'a> Error<'a> {
+    pub(crate) fn function_not_found(name: &'a str, text: &'a str, token: &Token<'a>) -> Error<'a> {
+        Error::FunctionNotFound { name, cursor: token.range.start, text }
+    }
 }
 
 impl<'a> From<io::Error> for Error<'a> {

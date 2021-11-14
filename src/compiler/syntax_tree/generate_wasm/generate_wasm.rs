@@ -1,56 +1,94 @@
+use std::collections::HashMap;
 use std::io;
-use super::error::{Result};
-use super::super::{BinaryOperator, ModuleNode, ExpressionNode, FunctionNode, StatementNode, SyntaxTree, UnaryOperator};
+
+use super::error::{Result, Error};
+use super::super::{LocalValue, BinaryOperator, ModuleNode, ExpressionNode, FunctionNode, StatementNode, SyntaxTree, UnaryOperator, Node};
+
+struct Scope<'a, 'b> {
+    functions: &'b HashMap<&'a str, &'b Node<'a, FunctionNode<'a>>>,
+    values: &'b HashMap<&'a str, &'b Node<'a, LocalValue<'a>>>,
+}
 
 impl<'a> SyntaxTree<'a> {
-    pub(crate) fn write_wasm<W: io::Write>(&self,  writer: &mut W) -> Result<'a, ()> {
+    pub(crate) fn write_wasm<W: io::Write>(&self, writer: &mut W) -> Result<'a, ()> {
         self.write_module(writer, &self.root)
     }
 
-    fn write_module<W: io::Write>(&self, writer: &mut W, program: &ModuleNode<'a>) -> Result<'a, ()> {
+    fn write_module<W: io::Write>(
+        &self,
+        writer: &mut W,
+        program: &ModuleNode<'a>,
+    ) -> Result<'a, ()> {
+        let scope = Scope {
+            functions: &program.functions.iter().map(|(k, v)| (*k, v)).collect(),
+            values: &HashMap::new(),
+        };
         for (_, function) in &program.functions {
-            self.write_function(writer, &function.entity)?
+            self.write_function(writer, &scope, &function.entity)?
         }
         Ok(())
     }
 
-    fn write_function<W: io::Write>(&self, writer: &mut W, function: &FunctionNode<'a>) -> Result<'a, ()> {
+    fn write_function<'b, W: io::Write>(
+        &self,
+        writer: &mut W,
+        scope: &'b Scope<'a, 'b>,
+        function: &'b FunctionNode<'a>,
+    ) -> Result<'a, ()> {
+        let mut values: HashMap<&'a str, &'b Node<'a, LocalValue<'a>>> = HashMap::new();
+
         writer.write_fmt(format_args!("(func ${} ", function.name))?;
         for argument in &function.arguments {
-            writer.write_fmt(format_args!("(param ${} i32)", argument.name))?;
+            values.insert(argument.entity.name, argument);
+            writer.write_fmt(format_args!("(param ${} i32)", argument.entity.name))?;
         }
         if function.return_.is_some() {
             writer.write_all(b"(result i32)")?;
         }
         for (_, local_value) in &function.local_values {
-            writer.write_fmt(format_args!("(local ${} i32)", local_value.name))?;
+            values.insert(local_value.entity.name, local_value);
+            writer.write_fmt(format_args!("(local ${} i32)", local_value.entity.name))?;
         }
         writer.write_all(b"\n")?;
+        
+        let values: HashMap<&'a str, &'b Node<'a, LocalValue<'a>>> = scope.values.iter().map(|(k, v)| (*k, *v)).chain(values).collect();
+        let scope = Scope { functions: scope.functions, values: &values };
         for statement in &function.statements {
-            self.write_statement(writer, statement)?
+            self.write_statement(writer, &scope, statement)?;
         }
         if let Some(return_) = &function.return_ {
-            self.write_expression(writer, &return_.entity.expression.entity)?
+            self.write_expression(writer, &scope, &return_.entity.expression)?;
         }
         writer.write_all(b")\n")?;
         Ok(())
     }
 
-    fn write_statement<W: io::Write>(&self, writer: &mut W, statement: &StatementNode<'a>) -> Result<'a, ()> {
-        match statement {
-            StatementNode::Expression(expression) => self.write_expression(writer, &expression.entity)?,
+    fn write_statement<'b, W: io::Write>(
+        &self,
+        writer: &mut W,
+        scope: &Scope<'a, 'b>,
+        statement: &StatementNode<'a>,
+    ) -> Result<'a, &'a str> {
+        let type_ = match statement {
+            StatementNode::Expression(expression) => self.write_expression(writer, scope, &expression)?,
             StatementNode::Assign(name, expression) => {
                 writer.write_fmt(format_args!("(local.set ${}", name.entity))?;
-                self.write_expression(writer, &expression.entity)?;
+                self.write_expression(writer, scope, &expression)?;
                 writer.write_all(b")")?;
+                "Void"
             },
-        }
+        };
         writer.write_all(b"\n")?;
-        Ok(())
+        Ok(type_)
     }
 
-    fn write_expression<W: io::Write>(&self, writer: &mut W, expression: &ExpressionNode<'a>) -> Result<'a, ()> {
-        match expression {
+    fn write_expression<'b, W: io::Write>(
+        &self,
+        writer: &mut W,
+        scope: &Scope<'a, 'b>,
+        expression: &Node<'a, ExpressionNode<'a>>,
+    ) -> Result<'a, &'a str> {
+        match &expression.entity {
             ExpressionNode::Value(value) => {
                 writer.write_fmt(format_args!("(i32.const {})", value))?;
             },
@@ -58,9 +96,13 @@ impl<'a> SyntaxTree<'a> {
                 writer.write_fmt(format_args!("(local.get ${})", name))?;
             },
             ExpressionNode::FunctionCall { name, arguments } => {
+                let function = scope.functions.get(name)
+                    .ok_or(Error::function_not_found(name, self.text, &expression.token))?;
+                let expected_arguments = &function.entity.arguments;
                 writer.write_fmt(format_args!("(call ${} ", name))?;
-                for argument in arguments {
-                    self.write_expression(writer, &argument.entity)?;
+                
+                for (i, argument) in arguments.iter().enumerate() {
+                    self.write_expression(writer, scope, &argument)?;
                 }
                 writer.write_all(b")")?;
             },
@@ -68,7 +110,7 @@ impl<'a> SyntaxTree<'a> {
                 match operator {
                     UnaryOperator::Minus => {
                         writer.write_all(b"(i32.sub (i32.const 0)")?;
-                        self.write_expression(writer, &child.entity)?;
+                        self.write_expression(writer, scope, &child)?;
                         writer.write_all(b")")?;
                     },
                 }
@@ -82,12 +124,12 @@ impl<'a> SyntaxTree<'a> {
                 };
                 writer.write_all(b"(")?;
                 writer.write_all(instruction)?;
-                self.write_expression(writer, &lhs.entity)?;
-                self.write_expression(writer, &rhs.entity)?;
+                self.write_expression(writer, scope, &lhs)?;
+                self.write_expression(writer, scope, &rhs)?;
                 writer.write_all(b")")?;
             },
         }
-        Ok(())
+        Ok("Void")
     }
 }
 

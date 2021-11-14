@@ -1,23 +1,35 @@
 use std::{collections::HashMap, iter::FromIterator};
 
-use super::{ExpressionNode, FunctionNode, LocalValue, ModuleNode, Node, Return, StatementNode, UnaryOperator, binary_operator::BinaryOperator, error::{Result, Error}};
+use super::{
+    ExpressionNode,
+    FunctionNode,
+    LocalValue,
+    ModuleNode,
+    Node,
+    Return,
+    StatementNode,
+    UnaryOperator,
+    binary_operator::BinaryOperator,
+    error::{Result, Error},
+};
 use super::super::tokens::{Token, PeekableTokens, TokenKind};
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct SyntaxTree<'a> {
+    pub(crate) text: &'a str,
     pub(crate) root: ModuleNode<'a>,
 }
 
 struct FunctionBody<'a> {
     statements: Vec< StatementNode<'a>>,
     return_: Option<Node<'a, Return<'a>>>,
-    local_values: HashMap<&'a str, LocalValue<'a>>,
+    local_values: HashMap<&'a str, Node<'a, LocalValue<'a>>>,
 }
 
 impl<'a> SyntaxTree<'a> {
     pub(crate) fn new(mut tokens: PeekableTokens<'a>) -> Result<'a, SyntaxTree<'a>> {
         let root = SyntaxTree::module(&mut tokens)?;
-        Ok(SyntaxTree { root })
+        Ok(SyntaxTree { text: tokens.text(), root })
     }
 
     fn skip_newlines(tokens: &mut PeekableTokens<'a>) -> Result<'a, ()> {
@@ -80,6 +92,10 @@ impl<'a> SyntaxTree<'a> {
 
         SyntaxTree::confirm_kind(TokenKind::CloseBrace, &tokens.next()?, tokens)?;
         SyntaxTree::confirm_kind(TokenKind::NewLine, &tokens.next()?, tokens)?;
+
+        if let Some(duplicated) = arguments.iter().find_map(|value| body.local_values.get(value.entity.name)) {
+            return Err(Error::duplicated_name(duplicated.entity.name, tokens, &duplicated.token));
+        }
         
         Ok(Node::new(
             FunctionNode {
@@ -94,12 +110,12 @@ impl<'a> SyntaxTree<'a> {
         ))
     }
 
-    fn arguments(tokens: &mut PeekableTokens<'a>) -> Result<'a, (Vec<LocalValue<'a>>, HashMap<&'a str, LocalValue<'a>>)> {
+    fn arguments(tokens: &mut PeekableTokens<'a>) -> Result<'a, (Vec<Node<'a, LocalValue<'a>>>, HashMap<&'a str, usize>)> {
         if tokens.peek()?.kind != TokenKind::Identifier { return Ok((Vec::new(), HashMap::new())); }
 
-        let (value, _) = SyntaxTree::value_definition(tokens)?;
-        let mut values: Vec<LocalValue<'a>> = vec![value.clone()];
-        let mut values_map: HashMap<&'a str, LocalValue<'a>> = HashMap::from_iter([(value.name, value)]);
+        let (value, token) = SyntaxTree::value_definition(tokens)?;
+        let mut values_map: HashMap<&'a str, usize> = HashMap::from_iter([(value.name, 0)]);
+        let mut values: Vec<Node<'a, LocalValue<'a>>> = vec![Node::new(value, token)];
         while tokens.peek()?.kind == TokenKind::Comma {
             tokens.next()?;
             SyntaxTree::skip_newlines(tokens)?;
@@ -107,8 +123,8 @@ impl<'a> SyntaxTree<'a> {
             if values_map.contains_key(value.name) {
                 return Err(Error::duplicated_name(value.name, tokens, &token));
             }
-            values.push(value.clone());
-            values_map.insert(value.name, value);
+            values_map.insert(value.name, values.len());
+            values.push(Node::new(value, token));
         }
         Ok((values, values_map))
     }
@@ -128,7 +144,7 @@ impl<'a> SyntaxTree<'a> {
 
     fn function_body(tokens: &mut PeekableTokens<'a>, return_type: &'a str) -> Result<'a, FunctionBody<'a>> {
         let mut statements: Vec<StatementNode<'a>> = Vec::new();
-        let mut local_values: HashMap<&'a str, LocalValue<'a>> = HashMap::new();
+        let mut local_values: HashMap<&'a str, Node<'a, LocalValue<'a>>> = HashMap::new();
 
         loop {
             let token = tokens.peek()?;
@@ -165,7 +181,7 @@ impl<'a> SyntaxTree<'a> {
 
     fn statement(
         tokens: &mut PeekableTokens<'a>,
-        local_values: &mut HashMap<&'a str, LocalValue<'a>>,
+        local_values: &mut HashMap<&'a str, Node<'a, LocalValue<'a>>>,
     ) -> Result<'a, StatementNode<'a>> {
         let token = tokens.peek()?;
         match token.kind {
@@ -174,7 +190,7 @@ impl<'a> SyntaxTree<'a> {
         }
     }
 
-    fn assign(tokens: &mut PeekableTokens<'a>, local_values: &mut HashMap<&'a str, LocalValue<'a>>) -> Result<'a, StatementNode<'a>> {
+    fn assign(tokens: &mut PeekableTokens<'a>, local_values: &mut HashMap<&'a str, Node<'a, LocalValue<'a>>>) -> Result<'a, StatementNode<'a>> {
         let (value, value_token) = SyntaxTree::value_definition(tokens)?;
 
         SyntaxTree::confirm_kind(TokenKind::Assign, &tokens.next()?, tokens)?;
@@ -183,8 +199,8 @@ impl<'a> SyntaxTree<'a> {
         
         if local_values.contains_key(value.name) { return Err(Error::duplicated_name(value.name, tokens, &value_token)); }
 
-        let statement = StatementNode::Assign(Node::new(value.name, value_token), expression);
-        local_values.insert(value.name, value);
+        let statement = StatementNode::Assign(Node::new(value.name, value_token.clone()), expression);
+        local_values.insert(value.name, Node::new(value, value_token));
 
         Ok(statement)
     }

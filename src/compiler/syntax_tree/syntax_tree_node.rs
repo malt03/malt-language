@@ -28,9 +28,9 @@ pub(crate) struct Return<'a> {
 #[derive(Debug, PartialEq)]
 pub(crate) struct FunctionNode<'a> {
     pub(crate) name: &'a str,
-    pub(crate) arguments: Vec<LocalValue<'a>>,
-    pub(crate) arguments_map: HashMap<&'a str, LocalValue<'a>>,
-    pub(crate) local_values: HashMap<&'a str, LocalValue<'a>>,
+    pub(crate) arguments: Vec<Node<'a, LocalValue<'a>>>,
+    pub(crate) arguments_map: HashMap<&'a str, usize>,
+    pub(crate) local_values: HashMap<&'a str, Node<'a, LocalValue<'a>>>,
     pub(crate) statements: Vec<StatementNode<'a>>,
     pub(crate) return_: Option<Node<'a, Return<'a>>>,
 }
