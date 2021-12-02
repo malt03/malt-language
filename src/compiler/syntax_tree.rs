@@ -5,6 +5,7 @@ mod binary_operator;
 mod syntax_tree_node;
 mod syntax_tree;
 mod generate_wasm;
+mod llvm;
 
 use binary_operator::BinaryOperator;
 use unary_operator::UnaryOperator;
@@ -13,3 +14,4 @@ use local_value::LocalValue;
 pub(crate) use error::Error;
 pub(crate) use syntax_tree_node::{ FunctionNode, StatementNode, ExpressionNode };
 pub(crate) use syntax_tree::SyntaxTree;
+pub(crate) use llvm::LLVM;
