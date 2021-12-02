@@ -4,7 +4,7 @@ mod syntax_tree;
 use std::io;
 
 use tokens::PeekableTokens;
-use syntax_tree::{SyntaxTree, LLVM};
+use syntax_tree::{SyntaxTree, llvm_generator};
 use inkwell::support::LLVMString;
 use inkwell::{OptimizationLevel, targets};
 use inkwell::builder::Builder;
@@ -20,6 +20,7 @@ pub enum Error<'a> {
     IO(io::Error),
     SyntaxTree(syntax_tree::Error<'a>),
     LLVMString(LLVMString),
+    LLVMGenerator(llvm_generator::Error<'a>)
 }
 impl<'a> From<io::Error> for Error<'a> {
     fn from(err: io::Error) -> Self { Error::IO(err) }
@@ -30,12 +31,16 @@ impl<'a> From<syntax_tree::Error<'a>> for Error<'a> {
 impl<'a> From<LLVMString> for Error<'a> {
     fn from(err: LLVMString) -> Self { Error::LLVMString(err) }
 }
+impl<'a> From<llvm_generator::Error<'a>> for Error<'a> {
+    fn from(err: llvm_generator::Error<'a>) -> Self { Error::LLVMGenerator(err) }
+}
 impl<'a> std::fmt::Display for Error<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::IO(err) => err.fmt(f),
             Error::SyntaxTree(err) => err.fmt(f),
             Error::LLVMString(err) => err.fmt(f),
+            Error::LLVMGenerator(err) => err.fmt(f),
         }
     }
 }
@@ -47,8 +52,8 @@ pub fn compile<'a>(text: &'a str) -> Result<'a, ()> {
     let syntax_tree = SyntaxTree::new(tokens)?;
 
     let context = Context::create();
-    let llvm = LLVM::new(&context);
-    let main_function = llvm.function(&syntax_tree.root);
+    let llvm = llvm_generator::LLVMGenerator::new(&context);
+    let main_function = llvm.function(&syntax_tree.root)?;
 
     Target::initialize_all(&Default::default());
     let cpu = TargetMachine::get_host_cpu_name();
