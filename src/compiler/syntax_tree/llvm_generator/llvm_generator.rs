@@ -3,7 +3,7 @@ use std::{collections::HashMap};
 use super::error::{Result, Error};
 
 use inkwell::{builder::Builder, context::Context, module::Module, values::{IntValue, FunctionValue}};
-use super::super::{ExpressionNode, FunctionNode, StatementNode, BinaryOperator};
+use super::super::{Node, ExpressionNode, FunctionNode, StatementNode, BinaryOperator};
 
 pub(crate) struct LLVMGenerator<'ctx> {
     context: &'ctx Context,
@@ -30,7 +30,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
         }
     }
 
-    pub(crate) fn function<'a>(&self, node: &FunctionNode<'a>) -> Result<'a, FunctionValue<'ctx>> {
+    pub(crate) fn function<'a>(&self, node: &Node<'a, FunctionNode<'a>>) -> Result<'a, FunctionValue<'ctx>> {
         let fn_type = self.context.i64_type().fn_type(&[], false);
         let fn_val = self.module.add_function("main", fn_type, None);
 
@@ -38,11 +38,11 @@ impl<'ctx> LLVMGenerator<'ctx> {
         self.builder.position_at_end(entry);
 
         let mut scope = Scope::new();
-        for statement in &node.statements {
-            self.statement(statement, &mut scope);
+        for statement in &node.kind.statements {
+            self.statement(statement, &mut scope)?;
         }
 
-        if let Some(expression) = node.return_statement.as_ref() {
+        if let Some(expression) = node.kind.return_statement.as_ref() {
             let value = self.expression(expression, &mut scope)?;
             self.builder.build_return(Some(&value));
         }
@@ -50,10 +50,10 @@ impl<'ctx> LLVMGenerator<'ctx> {
         Ok(fn_val)
     }
 
-    fn statement<'a>(&self, node: &StatementNode<'a>, scope: &mut Scope<'ctx, 'a>) -> Result<'a, ()> {
-        match node {
+    fn statement<'a>(&self, node: &Node<'a, StatementNode<'a>>, scope: &mut Scope<'ctx, 'a>) -> Result<'a, ()> {
+        match &node.kind {
             StatementNode::Expression(expression) => {
-                self.expression(expression, scope);
+                self.expression(expression, scope)?;
             }
             StatementNode::Assign(name, expression) => {
                 let expression = self.expression(expression, scope)?;
@@ -63,15 +63,15 @@ impl<'ctx> LLVMGenerator<'ctx> {
         Ok(())
     }
 
-    fn expression<'a>(&self, node: &ExpressionNode<'a>, scope: &mut Scope<'ctx, 'a>) -> Result<'a, IntValue<'ctx>> {
-        match node {
+    fn expression<'a>(&self, node: &Node<'a, ExpressionNode<'a>>, scope: &mut Scope<'ctx, 'a>) -> Result<'a, IntValue<'ctx>> {
+        match &node.kind {
             ExpressionNode::Value(value) => {
                 Ok(self.context.i64_type().const_int_from_string(value, inkwell::types::StringRadix::Decimal).unwrap())
             },
             ExpressionNode::Identifier(name) => {
                 match scope.local_values.get(name) {
                     Some(value) => Ok(value.clone()),
-                    None => Err(Error::ValueNotFound(name)),
+                    None => Err(Error::ValueNotFound { name, cursor: node.cursor, text: node.text }),
                 }
             },
             ExpressionNode::UnaryExpr { child, operator } => {
