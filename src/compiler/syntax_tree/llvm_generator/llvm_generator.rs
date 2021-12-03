@@ -3,7 +3,7 @@ use std::{collections::HashMap};
 use super::error::{Result, Error};
 
 use inkwell::{builder::Builder, context::Context, module::Module, values::{IntValue, FunctionValue}};
-use super::super::{Node, ExpressionNode, FunctionNode, StatementNode, BinaryOperator};
+use super::super::{Node, ExpressionNode, FunctionNode, StatementNode, BinaryOperator, UnaryOperator};
 
 pub(crate) struct LLVMGenerator<'ctx> {
     context: &'ctx Context,
@@ -75,14 +75,12 @@ impl<'ctx> LLVMGenerator<'ctx> {
                 }
             },
             ExpressionNode::UnaryExpr { child, operator } => {
-                unimplemented!()
-                // match operator {
-                //     UnaryOperator::Minus => {
-                //         writer.write_all(b"(i32.sub (i32.const 0)")?;
-                //         self.write_expression(writer, child)?;
-                //         writer.write_all(b")")?;
-                //     },
-                // }
+                match operator {
+                    UnaryOperator::Minus => {
+                        let child = self.expression(child, scope)?;
+                        Ok(self.builder.build_int_neg(child, "negtmp"))
+                    },
+                }
             },
             ExpressionNode::BinaryExpr { lhs, rhs, operator } => {
                 let lhs = self.expression(lhs, scope)?;

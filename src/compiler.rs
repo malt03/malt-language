@@ -63,7 +63,7 @@ pub fn compile<'a>(text: &'a str) -> Result<'a, ()> {
     let target_machine = target.create_target_machine(&triple, cpu.to_str().unwrap(), features.to_str().unwrap(), OptimizationLevel::Default, RelocMode::PIC, CodeModel::Default).unwrap();
     target_machine.write_to_file(&llvm.module, FileType::Object, Path::new("./out.o"))?;
     std::process::Command::new("gcc")
-        .args(vec!["out.o".into(), "-o".into(), "out"])
+        .args(vec!["out.o".into(), "-o".into(), "a.out"])
         .output()?;
 
     // unsafe {
