@@ -6,13 +6,9 @@ use std::io;
 use tokens::PeekableTokens;
 use syntax_tree::{SyntaxTree, llvm_generator};
 use inkwell::support::LLVMString;
-use inkwell::{OptimizationLevel, targets};
-use inkwell::builder::Builder;
+use inkwell::{OptimizationLevel};
 use inkwell::context::Context;
-use inkwell::execution_engine::{ExecutionEngine, JitFunction};
-use inkwell::module::Module;
-use inkwell::targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine};
-use inkwell::values::FloatValue;
+use inkwell::targets::{CodeModel, FileType, RelocMode, Target, TargetMachine};
 use std::path::Path;
 
 #[derive(Debug)]
@@ -53,7 +49,7 @@ pub fn compile<'a>(text: &'a str) -> Result<'a, ()> {
 
     let context = Context::create();
     let llvm = llvm_generator::LLVMGenerator::new(&context);
-    let main_function = llvm.function(&syntax_tree.root)?;
+    llvm.function(&syntax_tree.root)?;
 
     Target::initialize_all(&Default::default());
     let cpu = TargetMachine::get_host_cpu_name();
