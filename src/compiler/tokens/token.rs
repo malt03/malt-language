@@ -1,19 +1,23 @@
 use std::ops::Range;
 use super::TokenKind;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct Token<'a> {
     pub(crate) kind: TokenKind,
-    pub(crate) value: &'a str,
+    pub(crate) text: &'a str,
     pub(crate) range: Range<usize>,
 }
 
 impl<'a> Token<'a> {
     pub(crate) fn new(
         kind: TokenKind,
-        value: &'a str,
+        text: &'a str,
         range: Range<usize>,
     ) -> Token {
-        Token { kind, value, range }
+        Token { kind, text, range }
+    }
+
+    pub(crate) fn value(&self) -> &'a str {
+        &self.text[self.range.clone()]
     }
 }

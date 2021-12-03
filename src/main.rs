@@ -1,6 +1,5 @@
 use structopt::StructOpt;
 use std::fs;
-// use std::io;
 
 use lang::compiler::compile;
 

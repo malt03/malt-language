@@ -24,9 +24,9 @@ impl<'a> std::fmt::Display for Error<'a> {
                     }
                     let line_cursor = *cursor - read_len;
 
-                    write!(f, "unexpected character found. line: {}\n\n", line_number + 1)?;
-                    write!(f, "{}\n", line)?;
-                    write!(f, "{}^\n", " ".repeat(line_cursor))?;
+                    f.write_fmt(format_args!("unexpected character found. line: {}\n\n", line_number + 1))?;
+                    f.write_fmt(format_args!("{}\n", line))?;
+                    f.write_fmt(format_args!("{}^\n", " ".repeat(line_cursor)))?;
                     break;
                 }
                 
