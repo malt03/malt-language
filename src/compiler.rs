@@ -51,16 +51,18 @@ pub fn compile<'a>(text: &'a str) -> Result<'a, ()> {
     let llvm = llvm_generator::LLVMGenerator::new(&context);
     let module = llvm.module(&syntax_tree.root)?;
 
-    Target::initialize_all(&Default::default());
-    let cpu = TargetMachine::get_host_cpu_name();
-    let features = TargetMachine::get_host_cpu_features();
-    let triple = TargetMachine::get_default_triple();
-    let target = Target::from_triple(&triple)?;
-    let target_machine = target.create_target_machine(&triple, cpu.to_str().unwrap(), features.to_str().unwrap(), OptimizationLevel::Default, RelocMode::PIC, CodeModel::Default).unwrap();
-    target_machine.write_to_file(&module, FileType::Object, Path::new("./out.o"))?;
-    std::process::Command::new("gcc")
-        .args(vec!["out.o".into(), "-o".into(), "a.out"])
-        .output()?;
+    module.print_to_stderr();
+
+    // Target::initialize_all(&Default::default());
+    // let cpu = TargetMachine::get_host_cpu_name();
+    // let features = TargetMachine::get_host_cpu_features();
+    // let triple = TargetMachine::get_default_triple();
+    // let target = Target::from_triple(&triple)?;
+    // let target_machine = target.create_target_machine(&triple, cpu.to_str().unwrap(), features.to_str().unwrap(), OptimizationLevel::Default, RelocMode::PIC, CodeModel::Default).unwrap();
+    // target_machine.write_to_file(&module, FileType::Object, Path::new("./out.o"))?;
+    // std::process::Command::new("gcc")
+    //     .args(vec!["out.o".into(), "-o".into(), "a.out"])
+    //     .output()?;
 
     // unsafe {
     //     llvm.module.create_execution_engine()?.run_function(main_function, &[]);

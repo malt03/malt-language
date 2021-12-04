@@ -6,6 +6,7 @@ use super::{
     UnaryOperator,
     binary_operator::BinaryOperator,
     ValueDefinitionNode,
+    ReturnNode,
     error::{Result, Error},
 };
 use super::super::tokens::{Token, PeekableTokens, TokenKind};
@@ -18,7 +19,7 @@ pub(crate) struct SyntaxTree<'a> {
 
 struct FunctionBody<'a> {
     statements: Vec<StatementNode<'a>>,
-    return_expression: Option<ExpressionNode<'a>>,
+    ret: Option<ReturnNode<'a>>,
 }
 
 impl<'a> SyntaxTree<'a> {
@@ -79,8 +80,9 @@ impl<'a> SyntaxTree<'a> {
         SyntaxTree::skip_newlines(tokens)?;
 
         let body = SyntaxTree::function_body(tokens)?;
-
-        SyntaxTree::confirm_kind(TokenKind::CloseBrace, &tokens.next()?, tokens)?;
+        
+        let close = tokens.next()?;
+        SyntaxTree::confirm_kind(TokenKind::CloseBrace, &close, tokens)?;
         SyntaxTree::confirm_kind(TokenKind::NewLine, &tokens.next()?, tokens)?;
 
         Ok(FunctionNode {
@@ -88,7 +90,8 @@ impl<'a> SyntaxTree<'a> {
             arguments,
             return_type,
             statements: body.statements,
-            return_expression: body.return_expression,
+            ret: body.ret,
+            close,
         })
     }
 
@@ -128,10 +131,10 @@ impl<'a> SyntaxTree<'a> {
                     SyntaxTree::confirm_kind(TokenKind::Return, &token, tokens)?;
                     let expression = SyntaxTree::end_of_statement(tokens)?;
             
-                    return Ok(FunctionBody { statements, return_expression: Some(expression) });
+                    return Ok(FunctionBody { statements, ret: Some(ReturnNode { token, expression }) });
                 },
                 TokenKind::CloseBrace => {
-                    return Ok(FunctionBody { statements, return_expression: None });
+                    return Ok(FunctionBody { statements, ret: None });
                 },
                 _ => statements.push(SyntaxTree::statement(tokens)?),
             }
@@ -218,8 +221,9 @@ impl<'a> SyntaxTree<'a> {
                 SyntaxTree::primary(tokens)
             },
             TokenKind::Minus => {
-                tokens.next()?;
+                let token = tokens.next()?;
                 Ok(ExpressionNode::UnaryExpr {
+                    token,
                     child: Box::new(SyntaxTree::primary(tokens)?),
                     operator: UnaryOperator::Minus,
                 })

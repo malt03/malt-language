@@ -12,7 +12,14 @@ pub(crate) struct FunctionNode<'a> {
     pub(crate) arguments: Vec<ValueDefinitionNode<'a>>,
     pub(crate) return_type: Option<Token<'a>>,
     pub(crate) statements: Vec<StatementNode<'a>>,
-    pub(crate) return_expression: Option<ExpressionNode<'a>>,
+    pub(crate) ret: Option<ReturnNode<'a>>,
+    pub(crate) close: Token<'a>,
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct ReturnNode<'a> {
+    pub(crate) token: Token<'a>,
+    pub(crate) expression: ExpressionNode<'a>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -36,6 +43,7 @@ pub(crate) enum ExpressionNode<'a> {
         arguments: Vec<ExpressionNode<'a>>,
     },
     UnaryExpr {
+        token: Token<'a>,
         child: Box<ExpressionNode<'a>>,
         operator: UnaryOperator,
     },
