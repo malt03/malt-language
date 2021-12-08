@@ -1,23 +1,63 @@
-use std::str::FromStr;
+use std::{collections::HashMap, iter::FromIterator};
+use super::error::{Result, Error};
+use inkwell::{types::{BasicTypeEnum, FunctionType, BasicType, BasicMetadataTypeEnum}, context::Context, module::Module, values::{FunctionValue, BasicValueEnum, BasicMetadataValueEnum}, builder::Builder};
 
-use inkwell::{types::BasicTypeEnum, context::Context};
+use crate::compiler::{syntax_tree::FunctionNode, tokens::Token};
 
+#[derive(Clone)]
+pub(crate) struct Function<'a, 'ctx> {
+    pub(crate) name: &'a str,
+    pub(crate) return_type: Option<Type>,
+    pub(crate) arguments: Vec<(&'a str, Type)>,
+    pub(crate) val: FunctionValue<'ctx>,
+}
+
+impl<'a, 'ctx> Function<'a, 'ctx> {
+    pub(crate) fn new(type_map: &TypeMap<'a>, node: &FunctionNode<'a>, context: &'ctx Context, module: &Module<'ctx>) -> Result<'a, Function<'a, 'ctx>> {
+        let name = node.name.value();
+        let return_type = node.return_type.as_ref().map_or(Ok(None), |t| type_map.get(t).map(Some))?;
+        let arguments = node.arguments.iter().map(|arg| {
+            Ok((arg.name.value(), type_map.get(&arg.typ)?))
+        }).collect::<Result<Vec<(&'a str, Type)>>>()?;
+
+        let param_types = arguments.iter().map(|(_, typ)| {
+            typ.to_basic_type_enum(context).into()
+        }).collect::<Vec<BasicMetadataTypeEnum>>();
+        
+        let ty = return_type.type_to_fn_type(context, param_types.as_slice());
+        let val = module.add_function(name, ty, None);
+
+        Ok(Function { name, return_type, arguments, val })
+    }
+
+    pub(crate) fn build_call(&self, builder: &Builder<'ctx>, arguments: &[BasicMetadataValueEnum<'ctx>]) -> BasicValueEnum<'ctx> {
+        builder.build_call(self.val, arguments, "calltmp").try_as_basic_value().left().unwrap()
+    }
+}
+
+#[derive(Copy, Clone)]
 pub(crate) enum Type {
     Int,
     Double,
     Bool,
 }
 
-impl FromStr for Type {
-    type Err = ();
+pub(crate) struct TypeMap<'a> {
+    map: HashMap<&'a str, Type>,
+}
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Int" => Ok(Type::Int),
-            "Double" => Ok(Type::Double),
-            "Bool" => Ok(Type::Bool),
-            _ => Err(()),
-        }
+impl<'a> TypeMap<'a> {
+    pub(crate) fn new() -> TypeMap<'a> {
+        let map = HashMap::from_iter([
+            ("Int", Type::Int),
+            ("Double", Type::Double),
+            ("Bool", Type::Bool),
+        ]);
+        TypeMap { map }
+    }
+
+    pub(crate) fn get(&self, token: &Token<'a>) -> Result<'a, Type> {
+        self.map.get(token.value()).map(|t| *t).ok_or(Error::type_not_found(token))
     }
 }
 
@@ -27,6 +67,27 @@ impl<'ctx> Type {
             Type::Int => context.i64_type().into(),
             Type::Double => context.f64_type().into(),
             Type::Bool => context.bool_type().into(),
+        }
+    }
+
+    pub(crate) fn to_str(&self) -> &'static str {
+        match self {
+            Type::Int => "Int",
+            Type::Double => "Double",
+            Type::Bool => "Bool",
+        }
+    }
+}
+
+trait OptionType<'ctx> {
+    fn type_to_fn_type(&self, context: &'ctx Context, param_types: &[BasicMetadataTypeEnum<'ctx>]) -> FunctionType<'ctx>;
+}
+
+impl<'ctx> OptionType<'ctx> for Option<Type> {
+    fn type_to_fn_type(&self, context: &'ctx Context, param_types: &[BasicMetadataTypeEnum<'ctx>]) -> FunctionType<'ctx> {
+        match self {
+            Some(typ) => typ.to_basic_type_enum(context).fn_type(param_types, false),
+            None => context.void_type().fn_type(param_types, false),
         }
     }
 }
