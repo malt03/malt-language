@@ -40,7 +40,7 @@ pub(crate) enum ExpressionNode<'a> {
     Value(Token<'a>),
     FunctionCall {
         token: Token<'a>,
-        arguments: Vec<ExpressionNode<'a>>,
+        arguments: Vec<CallArgumentNode<'a>>,
     },
     UnaryExpr {
         token: Token<'a>,
@@ -52,4 +52,10 @@ pub(crate) enum ExpressionNode<'a> {
         rhs: Box<ExpressionNode<'a>>,
         operator: BinaryOperator,
     },
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct CallArgumentNode<'a> {
+    pub(crate) label: Token<'a>,
+    pub(crate) value: ExpressionNode<'a>
 }

@@ -129,9 +129,12 @@ impl<'ctx> LLVMGenerator<'ctx> {
                         return Err(Error::unexpected_arguments_length(function.arguments.len(), arguments.len(), token))
                     }
 
-                    let arguments = arguments.iter().enumerate().map(|(i, expression)| {
-                        let (_, expected_type) = function.arguments[i];
-                        self.expression(expression, Some(expected_type), scope).map(|v| v.into())
+                    let arguments = arguments.iter().enumerate().map(|(i, argument)| {
+                        let (name, expected_type) = function.arguments[i];
+                        if name != argument.label.value() {
+                            return Err(Error::unexpected_label(name, &argument.label))
+                        }
+                        self.expression(&argument.value, Some(expected_type), scope).map(|v| v.into())
                     }).collect::<Result<Vec<BasicMetadataValueEnum>>>()?;
 
                     Ok(function.build_call(&self.builder, arguments.as_slice()))

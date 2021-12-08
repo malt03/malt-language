@@ -7,6 +7,7 @@ use super::{
     binary_operator::BinaryOperator,
     ValueDefinitionNode,
     ReturnNode,
+    CallArgumentNode,
     error::{Result, Error},
 };
 use super::super::tokens::{Token, PeekableTokens, TokenKind};
@@ -112,8 +113,8 @@ impl<'a> SyntaxTree<'a> {
     fn value_definition(tokens: &mut PeekableTokens<'a>) -> Result<'a, ValueDefinitionNode<'a>> {
         let name = tokens.next()?;
         SyntaxTree::confirm_kind(TokenKind::Identifier, &name, tokens)?;
-        let token = tokens.next()?;
-        SyntaxTree::confirm_kind(TokenKind::Colon, &token, tokens)?;
+        let colon = tokens.next()?;
+        SyntaxTree::confirm_kind(TokenKind::Colon, &colon, tokens)?;
         let typ = tokens.next()?;
         SyntaxTree::confirm_kind(TokenKind::Type, &typ, tokens)?;
         
@@ -266,7 +267,7 @@ impl<'a> SyntaxTree<'a> {
 
     fn function_call(tokens: &mut PeekableTokens<'a>, token: Token<'a>) -> Result<'a, ExpressionNode<'a>> {
         SyntaxTree::confirm_kind(TokenKind::OpenParen, &tokens.next()?, tokens)?;
-        let arguments: Vec<ExpressionNode<'a>> = if tokens.peek()?.kind == TokenKind::CloseParen {
+        let arguments: Vec<CallArgumentNode<'a>> = if tokens.peek()?.kind == TokenKind::CloseParen {
             tokens.next()?;
             Vec::new()
         } else {
@@ -278,18 +279,28 @@ impl<'a> SyntaxTree<'a> {
         Ok(ExpressionNode::FunctionCall {token, arguments })
     }
 
-    fn call_arguments(tokens: &mut PeekableTokens<'a>) -> Result<'a, Vec<ExpressionNode<'a>>> {
+    fn call_arguments(tokens: &mut PeekableTokens<'a>) -> Result<'a, Vec<CallArgumentNode<'a>>> {
         SyntaxTree::skip_newlines(tokens)?;
-        let mut expressions = vec![SyntaxTree::expression(tokens)?];
+        let mut arguments = vec![SyntaxTree::call_argument(tokens)?];
 
         while tokens.peek()?.kind == TokenKind::Comma {
             tokens.next()?;
             SyntaxTree::skip_newlines(tokens)?;
             if tokens.peek()?.kind == TokenKind::CloseParen { break; }
-            expressions.push(SyntaxTree::expression(tokens)?);
+            arguments.push(SyntaxTree::call_argument(tokens)?);
         }
 
-        Ok(expressions)
+        Ok(arguments)
+    }
+
+    fn call_argument(tokens: &mut PeekableTokens<'a>) -> Result<'a, CallArgumentNode<'a>> {
+        let label = tokens.next()?;
+        SyntaxTree::confirm_kind(TokenKind::Identifier, &label, tokens)?;
+        let colon = tokens.next()?;
+        SyntaxTree::confirm_kind(TokenKind::Colon, &colon, tokens)?;
+        let value = SyntaxTree::expression(tokens)?;
+        
+        Ok(CallArgumentNode { label, value })
     }
 }
 
