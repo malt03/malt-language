@@ -2,7 +2,8 @@
 pub enum TokenKind {
     Identifier,
     Type,
-    Number,
+    Int,
+    Double,
     OpenParen,
     CloseParen,
     OpenBrace,
@@ -22,6 +23,8 @@ pub enum TokenKind {
     NewLine,
     Function,
     Return,
+    True,
+    False,
     EOF,
 }
 
@@ -30,7 +33,8 @@ impl ToString for TokenKind {
         match self {
             TokenKind::Identifier => "identifier".into(),
             TokenKind::Type => "type".into(),
-            TokenKind::Number => "number".into(),
+            TokenKind::Int => "int".into(),
+            TokenKind::Double => "double".into(),
             TokenKind::OpenParen => "'('".into(),
             TokenKind::CloseParen => "')'".into(),
             TokenKind::OpenBrace => "'{'".into(),
@@ -50,6 +54,8 @@ impl ToString for TokenKind {
             TokenKind::NewLine => "newline".into(),
             TokenKind::Function => "'fn'".into(),
             TokenKind::Return => "'return'".into(),
+            TokenKind::True => "true".into(),
+            TokenKind::False => "false".into(),
             TokenKind::EOF => "eof".into(),
         }
     }

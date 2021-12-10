@@ -1,6 +1,6 @@
 use std::{collections::HashMap};
 
-use super::{error::{Result, Error}, typ::{TypeMap, Function, Type}};
+use super::{error::{Result, Error}, typ::{TypeMap, Function, Type, VoidableType}};
 
 use inkwell::{builder::Builder, context::Context, values::{BasicMetadataValueEnum, BasicValueEnum}, module::Module};
 use super::super::{ExpressionNode, FunctionNode, StatementNode, BinaryOperator, UnaryOperator, ModuleNode};
@@ -59,7 +59,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
             self.statement(statement, &mut scope)?;
         }
 
-        if let Some(return_type) = function.return_type {
+        if let VoidableType::Type(return_type) = function.return_type {
             match node.ret.as_ref() {
                 Some(ret) => {
                     let value = self.expression(&ret.expression, Some(return_type), &mut scope)?;
@@ -90,22 +90,13 @@ impl<'ctx> LLVMGenerator<'ctx> {
         Ok(())
     }
 
-    fn const_from_string<'a>(&self, token: &Token<'a>, expected_type: Option<Type>) -> Result<'a, BasicValueEnum<'ctx>> {
+    fn validate_expected_type<'a>(expected_type: Option<Type>, typ: Type, token: &Token<'a>) -> Result<'a, ()> {
         if let Some(expected_type) = expected_type {
-            match expected_type {
-                Type::Int => Ok(self.context.i64_type().const_int_from_string(token.value(), inkwell::types::StringRadix::Decimal).unwrap().into()),
-                Type::Double => Ok(self.context.f64_type().const_float_from_string(token.value()).into()),
-                Type::Bool => {
-                    match token.value() {
-                        "true" => Ok(self.context.bool_type().const_int(1, false).into()),
-                        "false" => Ok(self.context.bool_type().const_int(0, false).into()),
-                        _ => Err(Error::unexpected_type("Bool", token.value(), token)),
-                    }
-                },
+            if typ != expected_type {
+                return Err(Error::unexpected_type(expected_type.to_str(), token.value(), token));
             }
-        } else {
-            Ok(self.context.i64_type().const_int_from_string(token.value(), inkwell::types::StringRadix::Decimal).unwrap().into())
         }
+        Ok(())
     }
 
     fn expression<'a, 'module>(
@@ -115,7 +106,25 @@ impl<'ctx> LLVMGenerator<'ctx> {
         scope: &Scope<'a, 'module, 'ctx>,
     ) -> Result<'a, BasicValueEnum<'ctx>> {
         match node {
-            ExpressionNode::Value(token) => Ok(self.const_from_string(token, expected_type)?),
+            ExpressionNode::Bool(value, token) => {
+                LLVMGenerator::validate_expected_type(expected_type, Type::Bool, token)?;
+                Ok(self.context.bool_type().const_int(if *value { 1 } else { 0 }, false).into())
+            },
+            ExpressionNode::Int(token) => {
+                if let Some(expected_type) = expected_type {
+                    match expected_type {
+                        Type::Int => Ok(self.context.i64_type().const_int_from_string(token.value(), inkwell::types::StringRadix::Decimal).unwrap().into()),
+                        Type::Double => Ok(self.context.f64_type().const_float_from_string(token.value()).into()),
+                        _ => Err(Error::unexpected_type(expected_type.to_str(), token.value(), token))
+                    }
+                } else {
+                    Ok(self.context.i64_type().const_int_from_string(token.value(), inkwell::types::StringRadix::Decimal).unwrap().into())
+                }
+            },
+            ExpressionNode::Double(token) => {
+                LLVMGenerator::validate_expected_type(expected_type, Type::Double, token)?;
+                Ok(self.context.f64_type().const_float_from_string(token.value()).into())
+            },
             ExpressionNode::Identifier(token) => {
                 match scope.local_values.get(token.value()) {
                     Some(value) => Ok(value.clone()),

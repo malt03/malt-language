@@ -246,9 +246,21 @@ impl<'a> SyntaxTree<'a> {
 
                 Ok(expression)
             },
-            TokenKind::Number => {
+            TokenKind::Int => {
                 let token = tokens.next()?;
-                Ok(ExpressionNode::Value(token))
+                Ok(ExpressionNode::Int(token))
+            },
+            TokenKind::Double => {
+                let token = tokens.next()?;
+                Ok(ExpressionNode::Double(token))
+            },
+            TokenKind::True => {
+                let token = tokens.next()?;
+                Ok(ExpressionNode::Bool(true, token))
+            },
+            TokenKind::False => {
+                let token = tokens.next()?;
+                Ok(ExpressionNode::Bool(false, token))
             },
             TokenKind::Identifier => {
                 let token = tokens.next()?;
@@ -260,7 +272,14 @@ impl<'a> SyntaxTree<'a> {
             },
             _ => {
                 let token = tokens.next()?;
-                Err(Error::unexpected_token([TokenKind::OpenParen, TokenKind::Number], tokens, &token))
+                Err(Error::unexpected_token([
+                    TokenKind::OpenParen,
+                    TokenKind::Int,
+                    TokenKind::Double,
+                    TokenKind::True,
+                    TokenKind::False,
+                    TokenKind::Identifier,
+                ], tokens, &token))
             },
         }
     }

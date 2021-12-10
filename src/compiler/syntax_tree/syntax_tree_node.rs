@@ -37,7 +37,9 @@ pub(crate) enum StatementNode<'a> {
 #[derive(Debug, PartialEq)]
 pub(crate) enum ExpressionNode<'a> {
     Identifier(Token<'a>),
-    Value(Token<'a>),
+    Int(Token<'a>),
+    Double(Token<'a>),
+    Bool(bool, Token<'a>),
     FunctionCall {
         token: Token<'a>,
         arguments: Vec<CallArgumentNode<'a>>,

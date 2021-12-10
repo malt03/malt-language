@@ -16,6 +16,12 @@ impl TokenConverter {
         let six: HashMap::<String, TokenKind> = HashMap::from_iter([
             ("return".into(), TokenKind::Return),
         ]);
+        let five: HashMap::<String, TokenKind> = HashMap::from_iter([
+            ("false".into(), TokenKind::False),
+        ]);
+        let four: HashMap::<String, TokenKind> = HashMap::from_iter([
+            ("true".into(), TokenKind::True),
+        ]);
         let two: HashMap::<String, TokenKind> = HashMap::from_iter([
             ("==".into(), TokenKind::Equal),
             (">=".into(), TokenKind::GreaterOrEqual),
@@ -41,6 +47,8 @@ impl TokenConverter {
         TokenConverter {
             tokens_maps: vec![
                 (6, six),
+                (5, five),
+                (4, four),
                 (2, two),
                 (1, one),
             ],
@@ -75,8 +83,12 @@ impl TokenConverter {
             }
             
             return if self.number_chars.contains(current_char) {
-                self.take_number(text, cursor);
-                Ok(Token::new(TokenKind::Number, text, start..*cursor))
+                let has_period = self.take_number(text, cursor);
+                if has_period {
+                    Ok(Token::new(TokenKind::Double, text, start..*cursor))
+                } else {
+                    Ok(Token::new(TokenKind::Int, text, start..*cursor))
+                }
             } else if self.identifier_chars.contains(current_char) {
                 self.take_identifier(text, cursor);
                 Ok(Token::new(TokenKind::Identifier, text, start..*cursor))
@@ -102,16 +114,26 @@ impl TokenConverter {
         return &text[start..*cursor];
     }
 
-    fn take_identifier<'a>(&self, text: &'a str, cursor: &mut usize) -> &'a str {
-        TokenConverter::take_while(text, cursor, |c| self.identifier_chars.contains(&c))
+    fn take_identifier<'a>(&self, text: &'a str, cursor: &mut usize) {
+        TokenConverter::take_while(text, cursor, |c| self.identifier_chars.contains(&c));
     }
 
-    fn take_type<'a>(&self, text: &'a str, cursor: &mut usize) -> &'a str {
-        TokenConverter::take_while(text, cursor, |c| self.type_chars.contains(&c))
+    fn take_type<'a>(&self, text: &'a str, cursor: &mut usize) {
+        TokenConverter::take_while(text, cursor, |c| self.type_chars.contains(&c));
     }
 
-    fn take_number<'a>(&self, text: &'a str, cursor: &mut usize) -> &'a str {
-        TokenConverter::take_while(text, cursor, |c| self.number_chars.contains(&c))
+    fn take_number<'a>(&self, text: &'a str, cursor: &mut usize) -> bool {
+        let mut has_period = false;
+        TokenConverter::take_while(text, cursor, |c| {
+            if self.number_chars.contains(&c) { return true }
+            if c == '.' {
+                if has_period { return false }
+                has_period = true;
+                return true;
+            }
+            false
+        });
+        has_period
     }
 
     fn convert_operators<'a>(&self, text: &'a str, cursor: &mut usize, max_length: usize) -> Option<TokenKind> {
@@ -148,6 +170,6 @@ mod tests {
         test("foo > bar", 5, 9, Token::new(TokenKind::Identifier, "bar", 6..9));
         test("foo=", 3, 4, Token::new(TokenKind::Assign, "=", 3..4));
         test("f3oo=", 0, 4, Token::new(TokenKind::Identifier, "f3oo", 0..4));
-        test("32foo=", 0, 2, Token::new(TokenKind::Number, "32", 0..2));
+        test("32foo=", 0, 2, Token::new(TokenKind::Int, "32", 0..2));
     }
 }

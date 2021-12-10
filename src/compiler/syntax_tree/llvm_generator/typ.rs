@@ -7,7 +7,7 @@ use crate::compiler::{syntax_tree::FunctionNode, tokens::Token};
 #[derive(Clone)]
 pub(crate) struct Function<'a, 'ctx> {
     pub(crate) name: &'a str,
-    pub(crate) return_type: Option<Type>,
+    pub(crate) return_type: VoidableType,
     pub(crate) arguments: Vec<(&'a str, Type)>,
     pub(crate) val: FunctionValue<'ctx>,
 }
@@ -15,7 +15,12 @@ pub(crate) struct Function<'a, 'ctx> {
 impl<'a, 'ctx> Function<'a, 'ctx> {
     pub(crate) fn new(type_map: &TypeMap<'a>, node: &FunctionNode<'a>, context: &'ctx Context, module: &Module<'ctx>) -> Result<'a, Function<'a, 'ctx>> {
         let name = node.name.value();
-        let return_type = node.return_type.as_ref().map_or(Ok(None), |t| type_map.get(t).map(Some))?;
+        let return_type = node.return_type.as_ref()
+            .map_or(
+                Ok(VoidableType::Void),
+                |t| type_map.get(t).map(VoidableType::Type),
+            )?;
+        
         let arguments = node.arguments.iter().map(|arg| {
             Ok((arg.name.value(), type_map.get(&arg.typ)?))
         }).collect::<Result<Vec<(&'a str, Type)>>>()?;
@@ -35,7 +40,7 @@ impl<'a, 'ctx> Function<'a, 'ctx> {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Type {
     Int,
     Double,
@@ -79,15 +84,17 @@ impl<'ctx> Type {
     }
 }
 
-trait OptionType<'ctx> {
-    fn type_to_fn_type(&self, context: &'ctx Context, param_types: &[BasicMetadataTypeEnum<'ctx>]) -> FunctionType<'ctx>;
+#[derive(Clone)]
+pub(crate) enum VoidableType {
+    Void,
+    Type(Type),
 }
 
-impl<'ctx> OptionType<'ctx> for Option<Type> {
+impl<'ctx> VoidableType {
     fn type_to_fn_type(&self, context: &'ctx Context, param_types: &[BasicMetadataTypeEnum<'ctx>]) -> FunctionType<'ctx> {
         match self {
-            Some(typ) => typ.to_basic_type_enum(context).fn_type(param_types, false),
-            None => context.void_type().fn_type(param_types, false),
+            VoidableType::Type(typ) => typ.to_basic_type_enum(context).fn_type(param_types, false),
+            VoidableType::Void => context.void_type().fn_type(param_types, false),
         }
     }
 }

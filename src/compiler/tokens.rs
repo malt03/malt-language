@@ -108,7 +108,7 @@ mod tests {
             Token::new(TokenKind::NewLine, "\n", 8..9),
             Token::new(TokenKind::Identifier, "print", 9..14),
             Token::new(TokenKind::OpenParen, "(", 14..15),
-            Token::new(TokenKind::Number, "3", 15..16),
+            Token::new(TokenKind::Int, "3", 15..16),
             Token::new(TokenKind::CloseParen, ")", 16..17 ),
         ]);
     }
