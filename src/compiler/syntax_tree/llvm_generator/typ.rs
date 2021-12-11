@@ -84,7 +84,7 @@ impl<'ctx> Type {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub(crate) enum VoidableType {
     Void,
     Type(Type),

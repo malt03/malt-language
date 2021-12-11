@@ -12,7 +12,7 @@ pub(crate) struct LLVMGenerator<'ctx> {
 }
 
 struct Scope<'a, 'module, 'ctx> {
-    local_values: &'module mut HashMap<&'a str, BasicValueEnum<'ctx>>,
+    local_values: &'module mut HashMap<&'a str, (Type, BasicValueEnum<'ctx>)>,
     functions: &'module HashMap<&'a str, Function<'a, 'ctx>>,
     type_map: &'module TypeMap<'a>,
 }
@@ -50,8 +50,9 @@ impl<'ctx> LLVMGenerator<'ctx> {
         let entry = self.context.append_basic_block(function.val, "entry");
         self.builder.position_at_end(entry);
 
-        let mut local_values: HashMap<&'a str, BasicValueEnum<'ctx>> = function.val.get_param_iter().enumerate().map(|(i, arg)| {
-            (node.arguments[i].name.value(), arg.into())
+        let mut local_values: HashMap<&'a str, (Type, BasicValueEnum<'ctx>)> = function.val.get_param_iter().enumerate().map(|(i, arg)| {
+            let (name, typ) = function.arguments[i];
+            (name, (typ, arg.into()))
         }).collect();
 
         let mut scope = Scope { local_values: &mut local_values, functions: scope.functions, type_map: scope.type_map };
@@ -82,17 +83,21 @@ impl<'ctx> LLVMGenerator<'ctx> {
                 self.expression(expression, None, scope)?;
             }
             StatementNode::Assign { lhs, rhs } => {
-                let typ = scope.type_map.get(&lhs.typ)?;
-                let expression = self.expression(rhs, Some(typ), scope)?;
-                scope.local_values.insert(lhs.name.value(), expression);
+                let expected_type = scope.type_map.get(&lhs.typ)?;
+                let expression = self.expression(rhs, Some(expected_type), scope)?;
+                scope.local_values.insert(lhs.name.value(), (expected_type, expression));
             },
         }
         Ok(())
     }
 
-    fn validate_expected_type<'a>(expected_type: Option<Type>, typ: Type, token: &Token<'a>) -> Result<'a, ()> {
+    fn validate_expected_type<'a>(expected_type: Option<Type>, typ: VoidableType, token: &Token<'a>) -> Result<'a, ()> {
         if let Some(expected_type) = expected_type {
-            if typ != expected_type {
+            if let VoidableType::Type(typ) = typ {
+                if typ != expected_type {
+                    return Err(Error::unexpected_type(expected_type.to_str(), token.value(), token));
+                }
+            } else {
                 return Err(Error::unexpected_type(expected_type.to_str(), token.value(), token));
             }
         }
@@ -107,7 +112,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
     ) -> Result<'a, BasicValueEnum<'ctx>> {
         match node {
             ExpressionNode::Bool(value, token) => {
-                LLVMGenerator::validate_expected_type(expected_type, Type::Bool, token)?;
+                LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(Type::Bool), token)?;
                 Ok(self.context.bool_type().const_int(if *value { 1 } else { 0 }, false).into())
             },
             ExpressionNode::Int(token) => {
@@ -117,23 +122,26 @@ impl<'ctx> LLVMGenerator<'ctx> {
                         Type::Double => Ok(self.context.f64_type().const_float_from_string(token.value()).into()),
                         _ => Err(Error::unexpected_type(expected_type.to_str(), token.value(), token))
                     }
-                } else {
-                    Ok(self.context.i64_type().const_int_from_string(token.value(), inkwell::types::StringRadix::Decimal).unwrap().into())
-                }
+                } else { Ok(self.context.i64_type().const_int_from_string(token.value(), inkwell::types::StringRadix::Decimal).unwrap().into()) }
             },
             ExpressionNode::Double(token) => {
-                LLVMGenerator::validate_expected_type(expected_type, Type::Double, token)?;
+                LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(Type::Double), token)?;
                 Ok(self.context.f64_type().const_float_from_string(token.value()).into())
             },
             ExpressionNode::Identifier(token) => {
                 match scope.local_values.get(token.value()) {
-                    Some(value) => Ok(value.clone()),
+                    Some((typ, value)) => {
+                        LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(*typ), token)?;
+                        Ok(value.clone())
+                    },
                     None => Err(Error::value_not_found(token)),
                 }
             },
             ExpressionNode::FunctionCall { token, arguments } => {
                 let function = scope.functions.get(token.value()).map(|v| v.clone());
                 if let Some(function) = function {
+                    LLVMGenerator::validate_expected_type(expected_type, function.return_type, token)?;
+
                     if function.arguments.len() != arguments.len() {
                         return Err(Error::unexpected_arguments_length(function.arguments.len(), arguments.len(), token))
                     }
