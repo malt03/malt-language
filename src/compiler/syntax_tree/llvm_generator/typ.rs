@@ -35,8 +35,13 @@ impl<'a, 'ctx> Function<'a, 'ctx> {
         Ok(Function { name, return_type, arguments, val })
     }
 
-    pub(crate) fn build_call(&self, builder: &Builder<'ctx>, arguments: &[BasicMetadataValueEnum<'ctx>]) -> BasicValueEnum<'ctx> {
-        builder.build_call(self.val, arguments, "calltmp").try_as_basic_value().left().unwrap()
+    pub(crate) fn build_call(&self, builder: &Builder<'ctx>, arguments: &[BasicMetadataValueEnum<'ctx>]) -> Option<(Type, BasicValueEnum<'ctx>)> {
+        let call = builder.build_call(self.val, arguments, "calltmp");
+        if let VoidableType::Type(typ) = self.return_type {
+            Some((typ, call.try_as_basic_value().left().unwrap()))
+        } else {
+            None
+        }
     }
 }
 

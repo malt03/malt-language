@@ -63,7 +63,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
         if let VoidableType::Type(return_type) = function.return_type {
             match node.ret.as_ref() {
                 Some(ret) => {
-                    let value = self.expression(&ret.expression, Some(return_type), &mut scope)?;
+                    let (_, value) = self.expression(&ret.expression, Some(return_type), &mut scope)?.unwrap();
                     self.builder.build_return(Some(&value));
                 },
                 None => {
@@ -84,7 +84,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
             }
             StatementNode::Assign { lhs, rhs } => {
                 let expected_type = scope.type_map.get(&lhs.typ)?;
-                let expression = self.expression(rhs, Some(expected_type), scope)?;
+                let (_, expression) = self.expression(rhs, Some(expected_type), scope)?.unwrap();
                 scope.local_values.insert(lhs.name.value(), (expected_type, expression));
             },
         }
@@ -109,30 +109,44 @@ impl<'ctx> LLVMGenerator<'ctx> {
         node: &ExpressionNode<'a>,
         expected_type: Option<Type>,
         scope: &Scope<'a, 'module, 'ctx>,
-    ) -> Result<'a, BasicValueEnum<'ctx>> {
+    ) -> Result<'a, Option<(Type, BasicValueEnum<'ctx>)>> {
         match node {
             ExpressionNode::Bool(value, token) => {
                 LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(Type::Bool), token)?;
-                Ok(self.context.bool_type().const_int(if *value { 1 } else { 0 }, false).into())
+                Ok(Some((Type::Bool, self.context.bool_type().const_int(if *value { 1 } else { 0 }, false).into())))
             },
             ExpressionNode::Int(token) => {
                 if let Some(expected_type) = expected_type {
                     match expected_type {
-                        Type::Int => Ok(self.context.i64_type().const_int_from_string(token.value(), inkwell::types::StringRadix::Decimal).unwrap().into()),
-                        Type::Double => Ok(self.context.f64_type().const_float_from_string(token.value()).into()),
+                        Type::Int => Ok(Some((
+                            Type::Int,
+                            self.context.i64_type().const_int_from_string(token.value(), inkwell::types::StringRadix::Decimal).unwrap().into(),
+                        ))),
+                        Type::Double => Ok(Some((
+                            Type::Double,
+                            self.context.f64_type().const_float_from_string(token.value()).into(),
+                        ))),
                         _ => Err(Error::unexpected_type(expected_type.to_str(), token.value(), token))
                     }
-                } else { Ok(self.context.i64_type().const_int_from_string(token.value(), inkwell::types::StringRadix::Decimal).unwrap().into()) }
+                } else {
+                    Ok(Some((
+                        Type::Int,
+                        self.context.i64_type().const_int_from_string(token.value(), inkwell::types::StringRadix::Decimal).unwrap().into()
+                    )))
+                }
             },
             ExpressionNode::Double(token) => {
                 LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(Type::Double), token)?;
-                Ok(self.context.f64_type().const_float_from_string(token.value()).into())
+                Ok(Some((
+                    Type::Double,
+                    self.context.f64_type().const_float_from_string(token.value()).into()
+                )))
             },
             ExpressionNode::Identifier(token) => {
                 match scope.local_values.get(token.value()) {
                     Some((typ, value)) => {
                         LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(*typ), token)?;
-                        Ok(value.clone())
+                        Ok(Some((*typ, value.clone())))
                     },
                     None => Err(Error::value_not_found(token)),
                 }
@@ -151,7 +165,8 @@ impl<'ctx> LLVMGenerator<'ctx> {
                         if name != argument.label.value() {
                             return Err(Error::unexpected_label(name, &argument.label))
                         }
-                        self.expression(&argument.value, Some(expected_type), scope).map(|v| v.into())
+                        let (_, v) = self.expression(&argument.value, Some(expected_type), scope)?.unwrap();
+                        Ok(v.into())
                     }).collect::<Result<Vec<BasicMetadataValueEnum>>>()?;
 
                     Ok(function.build_call(&self.builder, arguments.as_slice()))
@@ -160,27 +175,52 @@ impl<'ctx> LLVMGenerator<'ctx> {
             ExpressionNode::UnaryExpr { child, operator, token } => {
                 match operator {
                     UnaryOperator::Minus => {
-                        let child = self.expression(child, expected_type, scope)?;
-                        if child.is_float_value() {
-                            Ok(self.builder.build_float_neg(child.into_float_value(), "negtmp").into())
-                        } else if child.is_int_value() {
-                            Ok(self.builder.build_int_neg(child.into_int_value(), "negtmp").into())
-                        } else {
-                            Err(Error::cannot_apply_operator(token))
+                        let (typ, child) = self.expression(child, expected_type, scope)?
+                            .ok_or(Error::unexpected_type("Int, Double", "Void", token))?;
+                        let typ = expected_type.unwrap_or(typ);
+                        match typ {
+                            Type::Int => Ok(Some((
+                                Type::Int,
+                                self.builder.build_int_neg(child.into_int_value(), "negtmp").into(),
+                            ))),
+                            Type::Double => Ok(Some((
+                                Type::Double,
+                                self.builder.build_float_neg(child.into_float_value(), "negtmp").into(),
+                            ))),
+                            _ => Err(Error::unexpected_type(typ.to_str(), token.value(), token))
                         }
                     },
                 }
             },
-            ExpressionNode::BinaryExpr { lhs, rhs, operator } => {
-                let lhs = self.expression(lhs, expected_type, scope)?;
-                let rhs = self.expression(rhs, expected_type, scope)?;
-                let value = match operator {
-                    BinaryOperator::Plus => self.builder.build_int_add(lhs.into_int_value(), rhs.into_int_value(), "addtmp").into(),
-                    BinaryOperator::Minus => self.builder.build_int_sub(lhs.into_int_value(), rhs.into_int_value(), "subtmp").into(),
-                    BinaryOperator::Multiply => self.builder.build_int_mul(lhs.into_int_value(), rhs.into_int_value(), "multmp").into(),
-                    BinaryOperator::Divide => self.builder.build_int_signed_div(lhs.into_int_value(), rhs.into_int_value(), "divtmp").into(),
-                };
-                Ok(value)
+            ExpressionNode::BinaryExpr { lhs, rhs, operator, token } => {
+                let (lhs_type, lhs_value) = self.expression(lhs, expected_type, scope)?
+                    .ok_or(Error::unexpected_type("Comparable", "Void", token))?;
+                let (rhs_type, rhs_value) = self.expression(rhs, expected_type, scope)?
+                    .ok_or(Error::unexpected_type("Comparable", "Void", token))?;
+                if lhs_type != rhs_type {
+                    return Err(Error::unexpected_type(lhs_type.to_str(), rhs_type.to_str(), token));
+                }
+                match lhs_type {
+                    Type::Int => {
+                        let value = match operator {
+                            BinaryOperator::Plus => self.builder.build_int_add(lhs_value.into_int_value(), rhs_value.into_int_value(), "addtmp").into(),
+                            BinaryOperator::Minus => self.builder.build_int_sub(lhs_value.into_int_value(), rhs_value.into_int_value(), "subtmp").into(),
+                            BinaryOperator::Multiply => self.builder.build_int_mul(lhs_value.into_int_value(), rhs_value.into_int_value(), "multmp").into(),
+                            BinaryOperator::Divide => self.builder.build_int_signed_div(lhs_value.into_int_value(), rhs_value.into_int_value(), "divtmp").into(),
+                        };
+                        Ok(Some((Type::Int, value)))
+                    },
+                    Type::Double => {
+                        let value = match operator {
+                            BinaryOperator::Plus => self.builder.build_float_add(lhs_value.into_float_value(), rhs_value.into_float_value(), "addtmp").into(),
+                            BinaryOperator::Minus => self.builder.build_float_sub(lhs_value.into_float_value(), rhs_value.into_float_value(), "subtmp").into(),
+                            BinaryOperator::Multiply => self.builder.build_float_mul(lhs_value.into_float_value(), rhs_value.into_float_value(), "multmp").into(),
+                            BinaryOperator::Divide => self.builder.build_float_div(lhs_value.into_float_value(), rhs_value.into_float_value(), "divtmp").into(),
+                        };
+                        Ok(Some((Type::Double, value)))
+                    },
+                    _ => Err(Error::unexpected_type(lhs_type.to_str(), token.value(), token))
+                }
             },
         }
     }

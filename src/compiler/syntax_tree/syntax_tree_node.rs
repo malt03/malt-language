@@ -50,6 +50,7 @@ pub(crate) enum ExpressionNode<'a> {
         operator: UnaryOperator,
     },
     BinaryExpr {
+        token: Token<'a>,
         lhs: Box<ExpressionNode<'a>>,
         rhs: Box<ExpressionNode<'a>>,
         operator: BinaryOperator,

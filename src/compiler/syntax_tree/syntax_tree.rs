@@ -185,6 +185,7 @@ impl<'a> SyntaxTree<'a> {
                         lhs: Box::new(expression),
                         rhs: Box::new(rhs),
                         operator,
+                        token,
                     };
                 },
                 _ => return Ok(expression),
@@ -207,6 +208,7 @@ impl<'a> SyntaxTree<'a> {
                         lhs: Box::new(expression),
                         rhs: Box::new(rhs),
                         operator,
+                        token,
                     };
                 },
                 _ => return Ok(expression),

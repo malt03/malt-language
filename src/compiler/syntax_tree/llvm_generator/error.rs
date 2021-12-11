@@ -7,7 +7,6 @@ pub enum Error<'a> {
     TypeNotFound { name: &'a str, cursor: usize, text: &'a str },
     UnexpectedType { expected_type: &'a str, typ: &'a str, cursor: usize, text: &'a str },
     UnexpectedArgumentsLength { expected_length: usize, length: usize, cursor: usize, text: &'a str },
-    CannotApplyOperator { cursor: usize, text: &'a str },
     UnexpectedLabel { expected_label: &'a str, label: &'a str, cursor: usize, text: &'a str },
 }
 
@@ -30,10 +29,6 @@ impl<'a> Error<'a> {
 
     pub(crate) fn unexpected_arguments_length(expected_length: usize, length: usize, token: &Token<'a>) -> Error<'a> {
         Error::UnexpectedArgumentsLength { expected_length, length, cursor: token.range.start, text: token.text }
-    }
-
-    pub(crate) fn cannot_apply_operator(token: &Token<'a>) -> Error<'a> {
-        Error::CannotApplyOperator { cursor: token.range.start, text: token.text }
     }
 
     pub(crate) fn unexpected_label(expected_label: &'a str, label: &Token<'a>) -> Error<'a> {
@@ -94,10 +89,6 @@ impl<'a> std::fmt::Display for Error<'a> {
                     write!(f, "Expected: {}\n", expected_length)?;
                     write!(f, "Found: {}\n", length)?;
                     Ok(())
-                }),
-            Error::CannotApplyOperator{cursor, text} =>
-                line_error(f, cursor, text, |line_number, f| {
-                    write!(f, "cannot apply operator. line: {}\n", line_number)
                 }),
             Error::UnexpectedLabel{expected_label, label, cursor, text} =>
                 line_error(f, cursor, text, |line_number, f| {
