@@ -12,32 +12,27 @@ use token_converter::TokenConverter;
 #[derive(Debug)]
 pub(crate) struct PeekableTokens<'a> {
     tokens: Tokens<'a>,
-    peeked: Option<Token<'a>>,
+    peeked: Vec<Token<'a>>,
 }
 
 impl<'a> PeekableTokens<'a> {
     pub(crate) fn new(text: &'a str) -> PeekableTokens {
-        PeekableTokens { tokens: Tokens::new(text), peeked: None }
+        PeekableTokens { tokens: Tokens::new(text), peeked: Vec::new() }
     }
 }
 
 impl<'a> PeekableTokens<'a> {
     pub(crate) fn next(&mut self) -> Result<'a, Token<'a>> {
-        match self.peeked.take() {
-            Some(v) => Ok(v),
-            None => self.tokens.next(),
+        if self.peeked.is_empty() {
+            self.tokens.next()
+        } else {
+            Ok(self.peeked.remove(0))
         }
     }
 
-    pub(crate) fn peek(&mut self) -> Result<'a, &Token<'a>> {
-        let tokens = &mut self.tokens;
-        match self.peeked {
-            Some(ref token) => Ok(token),
-            None => {
-                self.peeked = Some(tokens.next()?);
-                Ok(self.peeked.as_ref().unwrap())
-            }
-        }
+    pub(crate) fn peek(&mut self, index: usize) -> Result<'a, &Token<'a>> {
+        while self.peeked.len() <= index { self.peeked.push(self.tokens.next()?); }
+        Ok(&self.peeked[index])
     }
 
     pub(crate) fn text(&self) -> &'a str { self.tokens.text }
