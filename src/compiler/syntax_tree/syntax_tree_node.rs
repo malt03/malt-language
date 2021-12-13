@@ -1,4 +1,4 @@
-use super::{UnaryOperator, BinaryOperator};
+use super::{UnaryOperator, BinaryOperator, CompareOperator};
 use super::super::tokens::Token;
 
 #[derive(Debug, PartialEq)]
@@ -54,6 +54,12 @@ pub(crate) enum ExpressionNode<'a> {
         lhs: Box<ExpressionNode<'a>>,
         rhs: Box<ExpressionNode<'a>>,
         operator: BinaryOperator,
+    },
+    CompareExpr {
+        token: Token<'a>,
+        lhs: Box<ExpressionNode<'a>>,
+        rhs: Box<ExpressionNode<'a>>,
+        operator: CompareOperator,
     },
 }
 

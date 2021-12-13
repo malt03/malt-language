@@ -7,7 +7,9 @@ statement           = end_of_statement | assign
 assign              = value_definition '=' end_of_statement
 return_statement    = 'return' end_of_statement
 end_of_statement    = expression '\n'
-expression          = add
+expression          = equality
+equality            = relational ("==" {'\n'} relational | "!=" {'\n'} relational)?
+relational          = add ("<" {'\n'} add | "<=" {'\n'} add | ">" {'\n'} add | ">=" {'\n'} add)?
 add                 = multiply { '+' {'\n'} multiply | '-' {'\n'} multiply }
 multiply            = unary { '*' {'\n'} unary | '/' {'\n'} unary }
 unary               = ( '+' | '-' )? primary

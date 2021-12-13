@@ -5,7 +5,7 @@ mod syntax_tree_node;
 mod syntax_tree;
 pub(crate) mod llvm_generator;
 
-use binary_operator::BinaryOperator;
+use binary_operator::{BinaryOperator, CompareOperator};
 use unary_operator::UnaryOperator;
 
 pub(crate) use error::Error;

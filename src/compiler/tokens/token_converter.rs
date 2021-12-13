@@ -24,6 +24,7 @@ impl TokenConverter {
         ]);
         let two: HashMap::<String, TokenKind> = HashMap::from_iter([
             ("==".into(), TokenKind::Equal),
+            ("!=".into(), TokenKind::NotEqual),
             (">=".into(), TokenKind::GreaterOrEqual),
             ("<=".into(), TokenKind::LessOrEqual),
             ("fn".into(), TokenKind::Function),

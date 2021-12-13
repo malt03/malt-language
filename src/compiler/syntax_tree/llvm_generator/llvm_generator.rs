@@ -2,8 +2,8 @@ use std::{collections::HashMap};
 
 use super::{error::{Result, Error}, typ::{TypeMap, Function, Type, VoidableType}};
 
-use inkwell::{builder::Builder, context::Context, values::{BasicMetadataValueEnum, BasicValueEnum}, module::Module};
-use super::super::{ExpressionNode, FunctionNode, StatementNode, BinaryOperator, UnaryOperator, ModuleNode};
+use inkwell::{builder::Builder, context::Context, values::{BasicMetadataValueEnum, BasicValueEnum}, module::Module, IntPredicate, FloatPredicate};
+use super::super::{ExpressionNode, FunctionNode, StatementNode, BinaryOperator, CompareOperator, UnaryOperator, ModuleNode};
 use super::super::super::tokens::Token;
 
 pub(crate) struct LLVMGenerator<'ctx> {
@@ -195,11 +195,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
             ExpressionNode::BinaryExpr { lhs, rhs, operator, token } => {
                 let (lhs_type, lhs_value) = self.expression(lhs, expected_type, scope)?
                     .ok_or(Error::unexpected_type("Comparable", "Void", token))?;
-                let (rhs_type, rhs_value) = self.expression(rhs, expected_type, scope)?
-                    .ok_or(Error::unexpected_type("Comparable", "Void", token))?;
-                if lhs_type != rhs_type {
-                    return Err(Error::unexpected_type(lhs_type.to_str(), rhs_type.to_str(), token));
-                }
+                let (_, rhs_value) = self.expression(rhs, Some(lhs_type), scope)?.unwrap();
                 match lhs_type {
                     Type::Int => {
                         let value = match operator {
@@ -222,6 +218,51 @@ impl<'ctx> LLVMGenerator<'ctx> {
                     _ => Err(Error::unexpected_type(lhs_type.to_str(), token.value(), token))
                 }
             },
+            ExpressionNode::CompareExpr { token, lhs, rhs, operator } => {
+                LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(Type::Bool), token)?;
+                
+                let (lhs_type, lhs_value) = self.expression(lhs, None, scope)?
+                    .ok_or(Error::unexpected_type("Comparable", "Void", token))?;
+                let (_, rhs_value) = self.expression(rhs, Some(lhs_type), scope)?.unwrap();
+                
+                match lhs_type {
+                    Type::Int => {
+                        let value = self.builder.build_int_compare(operator.into(), lhs_value.into_int_value(), rhs_value.into_int_value(), "cmptmp");
+                        Ok(Some((Type::Bool, value.into())))
+                    },
+                    Type::Double => {
+                        let value = self.builder.build_float_compare(operator.into(), lhs_value.into_float_value(), rhs_value.into_float_value(), "cmptmp");
+                        Ok(Some((Type::Bool, value.into())))
+                    },
+                    _ => Err(Error::unexpected_type(lhs_type.to_str(), token.value(), token))
+                }
+            },
+        }
+    }
+}
+
+impl Into<IntPredicate> for &CompareOperator {
+    fn into(self) -> IntPredicate {
+        match self {
+            CompareOperator::Equal => IntPredicate::EQ,
+            CompareOperator::NotEqual => IntPredicate::NE,
+            CompareOperator::Greater => IntPredicate::SGT,
+            CompareOperator::GreaterOrEqual => IntPredicate::SGE,
+            CompareOperator::Less => IntPredicate::SLT,
+            CompareOperator::LessOrEqual => IntPredicate::SLE,
+        }
+    }
+}
+
+impl Into<FloatPredicate> for &CompareOperator {
+    fn into(self) -> FloatPredicate {
+        match self {
+            CompareOperator::Equal => FloatPredicate::OEQ,
+            CompareOperator::NotEqual => FloatPredicate::ONE,
+            CompareOperator::Greater => FloatPredicate::OGT,
+            CompareOperator::GreaterOrEqual => FloatPredicate::OGE,
+            CompareOperator::Less => FloatPredicate::OLT,
+            CompareOperator::LessOrEqual => FloatPredicate::OLE,
         }
     }
 }

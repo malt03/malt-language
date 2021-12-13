@@ -4,7 +4,7 @@ use super::{
     ModuleNode,
     StatementNode,
     UnaryOperator,
-    binary_operator::BinaryOperator,
+    binary_operator::{BinaryOperator, CompareOperator},
     ValueDefinitionNode,
     ReturnNode,
     CallArgumentNode,
@@ -168,7 +168,49 @@ impl<'a> SyntaxTree<'a> {
     }
 
     fn expression(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
-        SyntaxTree::add(tokens)
+        SyntaxTree::equality(tokens)
+    }
+
+    fn equality(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
+        let lhs = SyntaxTree::relational(tokens)?;
+        
+        let token = tokens.peek(0)?;
+        match token.kind {
+            TokenKind::Equal | TokenKind::NotEqual => {
+                let token = tokens.next()?;
+                SyntaxTree::skip_newlines(tokens)?;
+                let rhs = SyntaxTree::relational(tokens)?;
+                let operator: CompareOperator = (&token.kind).into();
+                Ok(ExpressionNode::CompareExpr {
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    operator,
+                    token,
+                })
+            },
+            _ => Ok(lhs),
+        }
+    }
+
+    fn relational(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
+        let lhs = SyntaxTree::add(tokens)?;
+        
+        let token = tokens.peek(0)?;
+        match token.kind {
+            TokenKind::Greater | TokenKind::GreaterOrEqual | TokenKind::Less | TokenKind::LessOrEqual => {
+                let token = tokens.next()?;
+                SyntaxTree::skip_newlines(tokens)?;
+                let rhs = SyntaxTree::add(tokens)?;
+                let operator: CompareOperator = (&token.kind).into();
+                Ok(ExpressionNode::CompareExpr {
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    operator,
+                    token,
+                })
+            },
+            _ => Ok(lhs),
+        }
     }
 
     fn add(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {

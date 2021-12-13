@@ -19,3 +19,28 @@ impl From<&TokenKind> for BinaryOperator {
         }
     }
 }
+
+
+#[derive(Debug, PartialEq)]
+pub(crate) enum CompareOperator {
+    Equal,
+    NotEqual,
+    Greater,
+    GreaterOrEqual,
+    Less,
+    LessOrEqual,
+}
+
+impl From<&TokenKind> for CompareOperator {
+    fn from(kind: &TokenKind) -> Self {
+        match kind {
+            TokenKind::Equal => CompareOperator::Equal,
+            TokenKind::NotEqual => CompareOperator::NotEqual,
+            TokenKind::Greater => CompareOperator::Greater,
+            TokenKind::GreaterOrEqual => CompareOperator::GreaterOrEqual,
+            TokenKind::Less => CompareOperator::Less,
+            TokenKind::LessOrEqual => CompareOperator::LessOrEqual,
+            _ => panic!("unexpected")
+        }
+    }
+}
