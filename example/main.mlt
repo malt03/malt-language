@@ -1,6 +1,7 @@
 fn main(): Int {
-    foo: Int = 2 + 3 * ((5 - 1) + 1) / 3
+    foo = 2 + 3 * ((5 - 1) + 1) / 3
     bar: Int = 10 - 4
+    hoge = true
     return baz(a: foo, b: bar)
 }
 

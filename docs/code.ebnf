@@ -4,7 +4,7 @@ arguments           = (value_definition { ',' {'\n'} value_definition })?
 value_definition    = identifier ':' type
 block               = '{' {'\n'} ((statement { '\n' {'\n'} statement } ('\n' {'\n'} return_statement)?) | return_statement)? {'\n'} '}' '\n'
 statement           = expression | assign
-assign              = value_definition '=' expression
+assign              = identifier (':' type)? '=' expression
 return_statement    = 'return' expression
 expression          = equality
 equality            = relational ("==" {'\n'} relational | "!=" {'\n'} relational)?

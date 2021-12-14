@@ -82,10 +82,11 @@ impl<'ctx> LLVMGenerator<'ctx> {
             StatementNode::Expression(expression) => {
                 self.expression(expression, None, scope)?;
             }
-            StatementNode::Assign { lhs, rhs } => {
-                let expected_type = scope.type_map.get(&lhs.typ)?;
-                let (_, expression) = self.expression(rhs, Some(expected_type), scope)?.unwrap();
-                scope.local_values.insert(lhs.name.value(), (expected_type, expression));
+            StatementNode::Assign { name, typ, rhs } => {
+                let expected_type = typ.as_ref()
+                    .map_or(Ok(None), |t| scope.type_map.get(t).map(Some))?;
+                let (typ, expression) = self.expression(rhs, expected_type, scope)?.unwrap();
+                scope.local_values.insert(name.value(), (typ, expression));
             },
         }
         Ok(())

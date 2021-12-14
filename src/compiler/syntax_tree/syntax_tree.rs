@@ -145,22 +145,35 @@ impl<'a> SyntaxTree<'a> {
     }
 
     fn statement(tokens: &mut PeekableTokens<'a>) -> Result<'a, StatementNode<'a>> {
-        if tokens.peek(0)?.kind == TokenKind::Identifier && tokens.peek(1)?.kind == TokenKind::Colon {
+        if SyntaxTree::is_assign(tokens)? {
             SyntaxTree::assign(tokens)
         } else {
             Ok(StatementNode::Expression(SyntaxTree::expression(tokens)?))
         }
     }
 
+    fn is_assign(tokens: &mut PeekableTokens<'a>) -> Result<'a, bool> {
+        if tokens.peek(0)?.kind != TokenKind::Identifier { return Ok(false); }
+        if tokens.peek(1)?.kind == TokenKind::Colon { return Ok(true); }
+        if tokens.peek(1)?.kind == TokenKind::Assign { return Ok(true); }
+        Ok(false)
+    }
+
     fn assign(tokens: &mut PeekableTokens<'a>) -> Result<'a, StatementNode<'a>> {
-        let lhs = SyntaxTree::value_definition(tokens)?;
+        let name = tokens.next()?;
+        SyntaxTree::confirm_kind(TokenKind::Identifier, &name, tokens)?;
+
+        let typ = if tokens.peek(0)?.kind == TokenKind::Colon {
+            tokens.next()?;
+            let typ = tokens.next()?;
+            SyntaxTree::confirm_kind(TokenKind::Type, &typ, tokens)?;
+            Some(typ)
+        } else { None };
 
         SyntaxTree::confirm_kind(TokenKind::Assign, &tokens.next()?, tokens)?;
 
         let rhs = SyntaxTree::expression(tokens)?;
-        let statement = StatementNode::Assign { lhs, rhs };
-
-        Ok(statement)
+        Ok(StatementNode::Assign { name, typ, rhs })
     }
 
     fn expression(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {

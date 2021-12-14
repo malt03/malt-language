@@ -36,7 +36,7 @@ pub(crate) struct ValueDefinitionNode<'a> {
 #[derive(Debug, PartialEq)]
 pub(crate) enum StatementNode<'a> {
     Expression(ExpressionNode<'a>),
-    Assign { lhs: ValueDefinitionNode<'a>, rhs: ExpressionNode<'a> },
+    Assign { name: Token<'a>, typ: Option<Token<'a>>, rhs: ExpressionNode<'a> },
 }
 
 #[derive(Debug, PartialEq)]
