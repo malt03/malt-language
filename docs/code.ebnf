@@ -1,12 +1,11 @@
-module              = { {'\n'} function }
-function            = 'fn' identifier '(' {'\n'} arguments {'\n'} ')' (':' type)? {'\n'} '{' {'\n'} function_body '}' '\n'
+module              = { {'\n'} function {'\n'} }
+function            = 'fn' identifier '(' {'\n'} arguments {'\n'} ')' (':' type)? {'\n'} block
 arguments           = (value_definition { ',' {'\n'} value_definition })?
 value_definition    = identifier ':' type
-function_body       = { statement } return_statement?
-statement           = end_of_statement | assign
-assign              = value_definition '=' end_of_statement
-return_statement    = 'return' end_of_statement
-end_of_statement    = expression '\n'
+block               = '{' {'\n'} ((statement { '\n' {'\n'} statement } ('\n' {'\n'} return_statement)?) | return_statement)? {'\n'} '}' '\n'
+statement           = expression | assign
+assign              = value_definition '=' expression
+return_statement    = 'return' expression
 expression          = equality
 equality            = relational ("==" {'\n'} relational | "!=" {'\n'} relational)?
 relational          = add ("<" {'\n'} add | "<=" {'\n'} add | ">" {'\n'} add | ">=" {'\n'} add)?
@@ -17,6 +16,7 @@ primary             = num | identifier | function_call | '(' {'\n'} expression {
 function_call       = identifier '(' call_arguments? ')'
 call_arguments      = {'\n'} call_argument { ',' {'\n'} call_argument } ','? {'\n'}
 call_argument       = identifier ':' expression
+# if_branch           = if expression 
 
 
 module              = { {'\n'} function }

@@ -9,5 +9,5 @@ use binary_operator::{BinaryOperator, CompareOperator};
 use unary_operator::UnaryOperator;
 
 pub(crate) use error::Error;
-pub(crate) use syntax_tree_node::{FunctionNode, ValueDefinitionNode, StatementNode, ExpressionNode, ModuleNode, ReturnNode, CallArgumentNode};
+pub(crate) use syntax_tree_node::{FunctionNode, ValueDefinitionNode, StatementNode, ExpressionNode, ModuleNode, ReturnNode, CallArgumentNode, BlockNode};
 pub(crate) use syntax_tree::SyntaxTree;

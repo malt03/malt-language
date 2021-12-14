@@ -11,6 +11,11 @@ pub(crate) struct FunctionNode<'a> {
     pub(crate) name: Token<'a>,
     pub(crate) arguments: Vec<ValueDefinitionNode<'a>>,
     pub(crate) return_type: Option<Token<'a>>,
+    pub(crate) block: BlockNode<'a>,
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct BlockNode<'a> {
     pub(crate) statements: Vec<StatementNode<'a>>,
     pub(crate) ret: Option<ReturnNode<'a>>,
     pub(crate) close: Token<'a>,

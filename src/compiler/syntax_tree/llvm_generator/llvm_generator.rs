@@ -56,21 +56,21 @@ impl<'ctx> LLVMGenerator<'ctx> {
         }).collect();
 
         let mut scope = Scope { local_values: &mut local_values, functions: scope.functions, type_map: scope.type_map };
-        for statement in &node.statements {
+        for statement in &node.block.statements {
             self.statement(statement, &mut scope)?;
         }
 
         if let VoidableType::Type(return_type) = function.return_type {
-            match node.ret.as_ref() {
+            match node.block.ret.as_ref() {
                 Some(ret) => {
                     let (_, value) = self.expression(&ret.expression, Some(return_type), &mut scope)?.unwrap();
                     self.builder.build_return(Some(&value));
                 },
                 None => {
-                    return Err(Error::unexpected_type(return_type.to_str(), "Void", &node.close));
+                    return Err(Error::unexpected_type(return_type.to_str(), "Void", &node.block.close));
                 },
             }
-        } else if let Some(ret) = node.ret.as_ref() {
+        } else if let Some(ret) = node.block.ret.as_ref() {
             return Err(Error::unexpected_type("Void", ret.token.value(), &ret.token));
         }
         
