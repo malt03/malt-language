@@ -15,6 +15,7 @@ impl TokenConverter {
     pub(crate) fn new() -> Self {
         let six: HashMap::<String, TokenKind> = HashMap::from_iter([
             ("return".into(), TokenKind::Return),
+            ("struct".into(), TokenKind::Struct),
         ]);
         let five: HashMap::<String, TokenKind> = HashMap::from_iter([
             ("false".into(), TokenKind::False),
@@ -29,6 +30,7 @@ impl TokenConverter {
             ("!=".into(), TokenKind::NotEqual),
             (">=".into(), TokenKind::GreaterOrEqual),
             ("<=".into(), TokenKind::LessOrEqual),
+            ("/>".into(), TokenKind::CloseCall),
             ("fn".into(), TokenKind::Function),
             ("if".into(), TokenKind::If),
         ]);
@@ -46,6 +48,7 @@ impl TokenConverter {
             ("<".into(), TokenKind::Less),
             (":".into(), TokenKind::Colon),
             (",".into(), TokenKind::Comma),
+            (".".into(), TokenKind::Period),
         ]);
         
         TokenConverter {

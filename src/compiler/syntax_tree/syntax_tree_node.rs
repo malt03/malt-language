@@ -1,9 +1,9 @@
-use super::{UnaryOperator, BinaryOperator, CompareOperator};
-use super::super::tokens::Token;
+use super::{super::tokens::Token, unary_operator::UnaryOperator, binary_operator::{BinaryOperator, CompareOperator}};
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct ModuleNode<'a> {
     pub(crate) functions: Vec<FunctionNode<'a>>,
+    pub(crate) structs: Vec<StructNode<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -13,6 +13,12 @@ pub(crate) struct FunctionNode<'a> {
     pub(crate) name_with_arguments: String,
     pub(crate) return_type: Option<Token<'a>>,
     pub(crate) block: BlockNode<'a>,
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct StructNode<'a> {
+    pub(crate) name: Token<'a>,
+    pub(crate) properties: Vec<ValueDefinitionNode<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -31,13 +37,13 @@ pub(crate) struct ReturnNode<'a> {
 #[derive(Debug, PartialEq)]
 pub(crate) struct ValueDefinitionNode<'a> {
     pub(crate) name: Token<'a>,
-    pub(crate) typ: Token<'a>,
+    pub(crate) type_: Token<'a>,
 }
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum StatementNode<'a> {
     Expression(ExpressionNode<'a>),
-    Assign { name: Token<'a>, typ: Option<Token<'a>>, rhs: ExpressionNode<'a> },
+    Assign { name: Token<'a>, type_: Option<Token<'a>>, rhs: ExpressionNode<'a> },
 }
 
 #[derive(Debug, PartialEq)]
@@ -72,6 +78,14 @@ pub(crate) enum ExpressionNode<'a> {
         token: Token<'a>,
         if_branches: Vec<(Box<ExpressionNode<'a>>, Box<BlockNode<'a>>)>,
         else_branch: Option<Box<BlockNode<'a>>>,
+    },
+    StructProperty {
+        instance: Token<'a>,
+        property: Token<'a>,
+    },
+    StructConstruction {
+        type_: Token<'a>,
+        arguments: Vec<CallArgumentNode<'a>>,
     },
 }
 

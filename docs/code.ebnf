@@ -1,4 +1,6 @@
-module              = { {'\n'} function {'\n'} }
+module              = { {'\n'} function | struct {'\n'} }
+struct              = 'struct' type '{' {'\n'} properties? {'\n'} '}' '\n'
+properties          = value_definition { '\n' {'\n'} value_definition }
 function            = 'fn' identifier '(' {'\n'} arguments {'\n'} ')' (':' type)? {'\n'} block '\n'
 arguments           = (value_definition { ',' {'\n'} value_definition })?
 value_definition    = identifier ':' type
@@ -12,11 +14,13 @@ relational          = add ("<" {'\n'} add | "<=" {'\n'} add | ">" {'\n'} add | "
 add                 = multiply { '+' {'\n'} multiply | '-' {'\n'} multiply }
 multiply            = unary { '*' {'\n'} unary | '/' {'\n'} unary }
 unary               = ( '+' | '-' )? primary
-primary             = num | identifier | function_call | if_branch | '(' {'\n'} expression {'\n'} ')'
-function_call       = identifier '(' call_arguments? ')'
-call_arguments      = {'\n'} call_argument { ',' {'\n'} call_argument } ','? {'\n'}
-call_argument       = identifier ':' expression
+primary             = num | identifier | function_call | if_branch | struct_property | struct_construction | '(' {'\n'} expression {'\n'} ')'
+function_call       = '<' identifier { {'\n'} call_argument } '/>'
+call_argument       = identifier '=' '{' expression '}'
 if_branch           = 'if' expression block { 'elsif' expression block } ('else' block )?
+struct_property     = identifier '.' identifier
+struct_construction = '<' Type { {'\n'}  ',' } '/>'
+
 
 
 module              = { {'\n'} function }

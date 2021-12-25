@@ -1,9 +1,8 @@
-use crate::compiler::{tokens::Token, syntax_tree::{CallArgumentNode, binary_operator::CompareOperator, BlockNode}};
+use crate::compiler::{tokens::Token, syntax_tree::{binary_operator::{CompareOperator, BinaryOperator}, syntax_tree_node::{ExpressionNode, CallArgumentNode, BlockNode}, unary_operator::UnaryOperator}};
 
 use super::{error::{Result, Error}, typ::{Type, VoidableType, ExpectedType}, scope::Scope, LLVMGenerator};
 
 use inkwell::{values::{BasicMetadataValueEnum, BasicValueEnum, BasicValue}, basic_block::BasicBlock};
-use super::super::{ExpressionNode, BinaryOperator, UnaryOperator};
 
 impl<'ctx> LLVMGenerator<'ctx> {
     pub(super) fn expression<'a, 'module>(
@@ -21,7 +20,9 @@ impl<'ctx> LLVMGenerator<'ctx> {
             ExpressionNode::UnaryExpr { child, operator, token } => self.unary_expr(expected_type, scope, token, child, operator),
             ExpressionNode::BinaryExpr { lhs, rhs, operator, token } => self.binary_expr(expected_type, scope, token, lhs, rhs, operator),
             ExpressionNode::CompareExpr { token, lhs, rhs, operator } => self.compare_expr(expected_type, scope, token, lhs, rhs, operator),
-            ExpressionNode::IfBranch { token, if_branches, else_branch } => self.if_branch(expected_type, scope, token, if_branches, else_branch)
+            ExpressionNode::IfBranch { token, if_branches, else_branch } => self.if_branch(expected_type, scope, token, if_branches, else_branch),
+            ExpressionNode::StructProperty { instance, property } => todo!(),
+            ExpressionNode::StructConstruction { type_, arguments } => todo!(),
         }
     }
 
@@ -78,9 +79,9 @@ impl<'ctx> LLVMGenerator<'ctx> {
         scope: &Scope<'a, 'module, 'ctx>,
         token: &Token<'a>,
     ) -> Result<'a, Option<(Type, BasicValueEnum<'ctx>)>> {
-        let (typ, value) = scope.get_local_value(token)?;
-        LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(*typ), token)?;
-        Ok(Some((*typ, value.clone())))
+        let (type_, value) = scope.get_local_value(token)?;
+        LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(*type_), token)?;
+        Ok(Some((*type_, value.clone())))
     }
 
     fn function_call<'a, 'module>(
@@ -120,9 +121,9 @@ impl<'ctx> LLVMGenerator<'ctx> {
     ) -> Result<'a, Option<(Type, BasicValueEnum<'ctx>)>> {
         match operator {
             UnaryOperator::Minus => {
-                let (typ, child) = self.expression(child, expected_type, scope)?
+                let (type_, child) = self.expression(child, expected_type, scope)?
                     .ok_or(Error::unexpected_type("Int, Double", "Void", token))?;
-                match typ {
+                match type_ {
                     Type::Int => Ok(Some((
                         Type::Int,
                         self.builder.build_int_neg(child.into_int_value(), "negtmp").into(),
@@ -131,7 +132,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
                         Type::Double,
                         self.builder.build_float_neg(child.into_float_value(), "negtmp").into(),
                     ))),
-                    _ => Err(Error::unexpected_type(typ.to_str(), token.value(), token))
+                    _ => Err(Error::unexpected_type(type_.to_str(), token.value(), token))
                 }
             },
         }
@@ -213,9 +214,9 @@ impl<'ctx> LLVMGenerator<'ctx> {
         if !has_return {
             *all_return = false;
             self.builder.build_unconditional_branch(cont_block);
-            if let Some((typ, value)) = value {
+            if let Some((type_, value)) = value {
                 phi_incoming.push((value, self.builder.get_insert_block().unwrap()));
-                if expected_type.is_required() { *expected_type = ExpectedType::Type(typ); }
+                if expected_type.is_required() { *expected_type = ExpectedType::Type(type_); }
             }
         }
 
@@ -263,11 +264,11 @@ impl<'ctx> LLVMGenerator<'ctx> {
         self.builder.position_at_end(cont_block);
 
         match expected_type {
-            ExpectedType::Type(typ) => {
-                let phi = self.builder.build_phi(typ.to_basic_type_enum(self.context), "if_tmp");
+            ExpectedType::Type(type_) => {
+                let phi = self.builder.build_phi(type_.to_basic_type_enum(self.context), "if_tmp");
                 let phi_incoming: Vec<_> = phi_incoming.iter().map(|(v, b)| (v as &dyn BasicValue, *b)).collect();
                 phi.add_incoming(phi_incoming.as_slice());
-                Ok(Some((typ, phi.as_basic_value())))
+                Ok(Some((type_, phi.as_basic_value())))
             },
             ExpectedType::None => Ok(None),
             ExpectedType::Required => panic!("unexpected"),

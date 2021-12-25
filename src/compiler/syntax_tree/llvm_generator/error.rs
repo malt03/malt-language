@@ -5,7 +5,7 @@ pub enum Error<'a> {
     ValueNotFound { name: &'a str, cursor: usize, text: &'a str },
     FunctionNotFound { name: &'a str, cursor: usize, text: &'a str },
     TypeNotFound { name: &'a str, cursor: usize, text: &'a str },
-    UnexpectedType { expected_type: &'a str, typ: &'a str, cursor: usize, text: &'a str },
+    UnexpectedType { expected_type: &'a str, type_: &'a str, cursor: usize, text: &'a str },
     UnexpectedArgumentsLength { expected_length: usize, length: usize, cursor: usize, text: &'a str },
     UnexpectedLabel { expected_label: &'a str, label: &'a str, cursor: usize, text: &'a str },
     AllReturn { cursor: usize, text: &'a str },
@@ -24,8 +24,8 @@ impl<'a> Error<'a> {
         Error::TypeNotFound { name: token.value(), cursor: token.range.start, text: token.text }
     }
 
-    pub(crate) fn unexpected_type(expected_type: &'a str, typ: &'a str, token: &Token<'a>) -> Error<'a> {
-        Error::UnexpectedType { expected_type, typ, cursor: token.range.start, text: token.text }
+    pub(crate) fn unexpected_type(expected_type: &'a str, type_: &'a str, token: &Token<'a>) -> Error<'a> {
+        Error::UnexpectedType { expected_type, type_, cursor: token.range.start, text: token.text }
     }
 
     pub(crate) fn unexpected_arguments_length(expected_length: usize, length: usize, token: &Token<'a>) -> Error<'a> {
@@ -81,11 +81,11 @@ impl<'a> std::fmt::Display for Error<'a> {
                 line_error(f, cursor, text, |line_number, f| {
                     write!(f, "cannot find function `{}` in this scope. line: {}\n", name, line_number)
                 }),
-            Error::UnexpectedType{expected_type, typ, cursor, text} =>
+            Error::UnexpectedType{expected_type, type_, cursor, text} =>
                 line_error(f, cursor, text, |line_number, f| {
                     write!(f, "unexpected type found. line: {}\n", line_number)?;
                     write!(f, "Expected: {}\n", expected_type)?;
-                    write!(f, "Found: {}\n", typ)?;
+                    write!(f, "Found: {}\n", type_)?;
                     Ok(())
                 }),
             Error::UnexpectedArgumentsLength{expected_length, length, cursor, text} =>

@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
-use crate::compiler::syntax_tree::BlockNode;
+use crate::compiler::syntax_tree::{syntax_tree_node::{ModuleNode, FunctionNode, StatementNode, BlockNode}, binary_operator::CompareOperator};
 
 use super::{error::{Result, Error}, typ::{Function, Type, VoidableType, ExpectedType}, scope::{ScopeValues, Scope}};
 
 use inkwell::{builder::Builder, context::Context, values::BasicValueEnum, module::Module, IntPredicate, FloatPredicate};
-use super::super::{FunctionNode, StatementNode, CompareOperator, ModuleNode};
 use super::super::super::tokens::Token;
 
 pub(crate) struct LLVMGenerator<'ctx> {
@@ -43,8 +42,8 @@ impl<'ctx> LLVMGenerator<'ctx> {
         let function = scope.get_function(&node.name, &node.name_with_arguments)?;
 
         let local_values: HashMap<&'a str, (Type, BasicValueEnum<'ctx>)> = function.val.get_param_iter().enumerate().map(|(i, arg)| {
-            let (name, typ) = function.arguments[i];
-            (name, (typ, arg.into()))
+            let (name, type_) = function.arguments[i];
+            (name, (type_, arg.into()))
         }).collect();
 
         let scope = Scope::function(
@@ -69,15 +68,15 @@ impl<'ctx> LLVMGenerator<'ctx> {
             StatementNode::Expression(expression) => {
                 self.expression(expression, expected_type, scope)
             }
-            StatementNode::Assign { name, typ, rhs } => {
+            StatementNode::Assign { name, type_, rhs } => {
                 match expected_type {
                     ExpectedType::Type(expected_type) => Err(Error::unexpected_type(expected_type.to_str(), "assign", name)),
                     ExpectedType::Required => Err(Error::unexpected_type("Any", "assign", name)),
                     ExpectedType::None => {
-                        let expected_type = typ.as_ref()
+                        let expected_type = type_.as_ref()
                             .map_or(Ok(ExpectedType::Required), |t| scope.get_type(t).map(ExpectedType::Type))?;
-                        let (typ, expression) = self.expression(rhs, expected_type, scope)?.unwrap();
-                        scope.add_local_value(name.value(), (typ, expression));
+                        let (type_, expression) = self.expression(rhs, expected_type, scope)?.unwrap();
+                        scope.add_local_value(name.value(), (type_, expression));
                         Ok(None)
                     }
                 }
@@ -85,11 +84,11 @@ impl<'ctx> LLVMGenerator<'ctx> {
         }
     }
 
-    pub(super) fn validate_expected_type<'a>(expected_type: ExpectedType, typ: VoidableType, token: &Token<'a>) -> Result<'a, ()> {
+    pub(super) fn validate_expected_type<'a>(expected_type: ExpectedType, type_: VoidableType, token: &Token<'a>) -> Result<'a, ()> {
         match expected_type {
             ExpectedType::Type(expected_type) => {
-                if let VoidableType::Type(typ) = typ {
-                    if typ != expected_type {
+                if let VoidableType::Type(type_) = type_ {
+                    if type_ != expected_type {
                         Err(Error::unexpected_type(expected_type.to_str(), token.value(), token))
                     } else {
                         Ok(())
@@ -99,7 +98,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
                 }
             },
             ExpectedType::Required => {
-                if typ.is_void() {
+                if type_.is_void() {
                     Err(Error::unexpected_type("Any", token.value(), token))
                 } else { Ok(()) }
             },

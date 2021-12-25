@@ -2,7 +2,7 @@ use std::{collections::HashMap, iter::FromIterator};
 use super::{error::Result, scope::Scope};
 use inkwell::{types::{BasicTypeEnum, FunctionType, BasicType, BasicMetadataTypeEnum}, context::Context, module::Module, values::{FunctionValue, BasicValueEnum, BasicMetadataValueEnum}, builder::Builder};
 
-use crate::compiler::{syntax_tree::FunctionNode, tokens::Token};
+use crate::compiler::{tokens::Token, syntax_tree::syntax_tree_node::FunctionNode};
 
 #[derive(Clone)]
 pub(crate) struct Function<'a, 'ctx> {
@@ -23,11 +23,11 @@ impl<'a, 'ctx> Function<'a, 'ctx> {
             )?;
         
         let arguments = node.arguments.iter().map(|arg| {
-            Ok((arg.name.value(), scope.get_type(&arg.typ)?))
+            Ok((arg.name.value(), scope.get_type(&arg.type_)?))
         }).collect::<Result<Vec<(&'a str, Type)>>>()?;
 
-        let param_types = arguments.iter().map(|(_, typ)| {
-            typ.to_basic_type_enum(context).into()
+        let param_types = arguments.iter().map(|(_, type_)| {
+            type_.to_basic_type_enum(context).into()
         }).collect::<Vec<BasicMetadataTypeEnum>>();
         
         let ty = return_type.type_to_fn_type(context, param_types.as_slice());
@@ -38,8 +38,8 @@ impl<'a, 'ctx> Function<'a, 'ctx> {
 
     pub(crate) fn build_call(&self, builder: &Builder<'ctx>, arguments: &[BasicMetadataValueEnum<'ctx>]) -> Option<(Type, BasicValueEnum<'ctx>)> {
         let call = builder.build_call(self.val, arguments, "calltmp");
-        if let VoidableType::Type(typ) = self.return_type {
-            Some((typ, call.try_as_basic_value().left().unwrap()))
+        if let VoidableType::Type(type_) = self.return_type {
+            Some((type_, call.try_as_basic_value().left().unwrap()))
         } else {
             None
         }
@@ -99,7 +99,7 @@ pub(crate) enum VoidableType {
 impl<'ctx> VoidableType {
     fn type_to_fn_type(&self, context: &'ctx Context, param_types: &[BasicMetadataTypeEnum<'ctx>]) -> FunctionType<'ctx> {
         match self {
-            VoidableType::Type(typ) => typ.to_basic_type_enum(context).fn_type(param_types, false),
+            VoidableType::Type(type_) => type_.to_basic_type_enum(context).fn_type(param_types, false),
             VoidableType::Void => context.void_type().fn_type(param_types, false),
         }
     }
@@ -117,7 +117,7 @@ impl<'ctx> VoidableType {
 
     pub(crate) fn to_str(&self) -> &'static str {
         match self {
-            VoidableType::Type(typ) => typ.to_str(),
+            VoidableType::Type(type_) => type_.to_str(),
             VoidableType::Void => "Void",
         }
     }
@@ -133,7 +133,7 @@ pub(crate) enum ExpectedType {
 impl ExpectedType {
     pub(crate) fn to_str(&self) -> &'static str {
         match self {
-            ExpectedType::Type(typ) => typ.to_str(),
+            ExpectedType::Type(type_) => type_.to_str(),
             ExpectedType::None => "None",
             ExpectedType::Required => "Any",
         }
