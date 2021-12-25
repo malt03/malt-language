@@ -51,8 +51,6 @@ pub fn compile<'a>(text: &'a str) -> Result<'a, ()> {
     let llvm = llvm_generator::LLVMGenerator::new(&context);
     let module = llvm.module(&syntax_tree.root)?;
 
-    module.print_to_stderr();
-
     Target::initialize_all(&Default::default());
     let cpu = TargetMachine::get_host_cpu_name();
     let features = TargetMachine::get_host_cpu_features();
