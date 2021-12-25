@@ -73,7 +73,33 @@ impl<'a> SyntaxTree<'a> {
     }
 
     fn struct_(tokens: &mut PeekableTokens<'a>) -> Result<'a, StructNode<'a>> {
-        todo!()
+        SyntaxTree::confirm_kind(TokenKind::Struct, &tokens.next()?, tokens)?;
+        let name = tokens.next()?;
+        SyntaxTree::confirm_kind(TokenKind::Type, &name, tokens)?;
+        SyntaxTree::confirm_kind(TokenKind::OpenBrace, &tokens.next()?, tokens)?;
+        SyntaxTree::skip_newlines(tokens)?;
+
+        let properties = if tokens.peek(0)?.kind == TokenKind::CloseBrace {
+            tokens.next()?;
+            Vec::new()
+        } else {
+            let properties = SyntaxTree::properties(tokens)?;
+            SyntaxTree::skip_newlines(tokens)?;
+            SyntaxTree::confirm_kind(TokenKind::CloseBrace, &tokens.next()?, tokens)?;
+            properties
+        };
+
+        Ok(StructNode { name, properties })
+    }
+
+    fn properties(tokens: &mut PeekableTokens<'a>) -> Result<'a, Vec<ValueDefinitionNode<'a>>> {
+        let mut value_definition = vec![SyntaxTree::value_definition(tokens)?];
+
+        while tokens.peek(0)?.kind == TokenKind::NewLine {
+            SyntaxTree::skip_newlines(tokens)?;
+            value_definition.push(SyntaxTree::value_definition(tokens)?);
+        }
+        Ok(value_definition)
     }
 
     fn function(tokens: &mut PeekableTokens<'a>) -> Result<'a, FunctionNode<'a>> {
@@ -323,24 +349,8 @@ impl<'a> SyntaxTree<'a> {
     }
 
     fn struct_construction(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
-        // SyntaxTree::confirm_kind(TokenKind::Less, &tokens.next()?, tokens)?;
-        // let type_ = tokens.next()?;
-        // SyntaxTree::confirm_kind(TokenKind::Type, &type_, tokens)?;
-        
-        // let mut arguments = vec![SyntaxTree::call_argument(tokens)?];
-
-        // while tokens.peek(0)?.kind != TokenKind::CloseCall {
-        //     SyntaxTree::skip_newlines(tokens)?;
-        //     let label = tokens.next()?;
-        //     SyntaxTree::confirm_kind(TokenKind::Identifier, &label, tokens)?;
-        //     SyntaxTree::confirm_kind(TokenKind::Assign, &tokens.next()?, tokens)?;
-        //     let value = SyntaxTree::expression(tokens)?;
-        
-        //     if tokens.peek(0)?.kind == TokenKind::CloseParen { break; }
-        //     arguments.push(SyntaxTree::call_argument(tokens)?);
-        // }
-
-        todo!()
+        let (type_, arguments) = SyntaxTree::call(TokenKind::Identifier, tokens)?;
+        Ok(ExpressionNode::StructConstruction {type_, arguments})
     }
 
     fn unary(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
@@ -430,9 +440,18 @@ impl<'a> SyntaxTree<'a> {
     }
 
     fn function_call(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
+        let (token, arguments) = SyntaxTree::call(TokenKind::Identifier, tokens)?;
+        let name_with_arguments = create_name_with_arguments(
+            &token,
+            arguments.iter().map(|arg| arg.label.value().to_string()),
+        );
+        Ok(ExpressionNode::FunctionCall {token, arguments, name_with_arguments})
+    }
+
+    fn call(kind: TokenKind, tokens: &mut PeekableTokens<'a>) -> Result<'a, (Token<'a>, Vec<CallArgumentNode<'a>>)> {
         SyntaxTree::confirm_kind(TokenKind::Less, &tokens.next()?, tokens)?;
         let token = tokens.next()?;
-        SyntaxTree::confirm_kind(TokenKind::Identifier, &token, tokens)?;
+        SyntaxTree::confirm_kind(kind, &token, tokens)?;
         
         let mut arguments: Vec<CallArgumentNode<'a>> = Vec::new();
         while tokens.peek(0)?.kind != TokenKind::CloseCall {
@@ -440,13 +459,8 @@ impl<'a> SyntaxTree<'a> {
             arguments.push(SyntaxTree::call_argument(tokens)?);
         }
         SyntaxTree::confirm_kind(TokenKind::CloseCall, &tokens.next()?, tokens)?;
-        
-        let name_with_arguments = create_name_with_arguments(
-            &token,
-            arguments.iter().map(|arg| arg.label.value().to_string()),
-        );
 
-        Ok(ExpressionNode::FunctionCall {token, arguments, name_with_arguments})
+        Ok((token, arguments))
     }
 
     fn call_argument(tokens: &mut PeekableTokens<'a>) -> Result<'a, CallArgumentNode<'a>> {
