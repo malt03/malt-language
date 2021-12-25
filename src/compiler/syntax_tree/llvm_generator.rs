@@ -1,4 +1,5 @@
 mod error;
+mod scope;
 mod typ;
 mod llvm_generator;
 

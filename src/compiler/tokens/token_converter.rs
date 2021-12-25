@@ -18,9 +18,11 @@ impl TokenConverter {
         ]);
         let five: HashMap::<String, TokenKind> = HashMap::from_iter([
             ("false".into(), TokenKind::False),
+            ("elsif".into(), TokenKind::Elsif),
         ]);
         let four: HashMap::<String, TokenKind> = HashMap::from_iter([
             ("true".into(), TokenKind::True),
+            ("else".into(), TokenKind::Else),
         ]);
         let two: HashMap::<String, TokenKind> = HashMap::from_iter([
             ("==".into(), TokenKind::Equal),
@@ -28,6 +30,7 @@ impl TokenConverter {
             (">=".into(), TokenKind::GreaterOrEqual),
             ("<=".into(), TokenKind::LessOrEqual),
             ("fn".into(), TokenKind::Function),
+            ("if".into(), TokenKind::If),
         ]);
         let one: HashMap::<String, TokenKind> = HashMap::from_iter([
             ("(".into(), TokenKind::OpenParen),

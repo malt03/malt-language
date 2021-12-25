@@ -24,7 +24,7 @@ pub(crate) struct BlockNode<'a> {
 #[derive(Debug, PartialEq)]
 pub(crate) struct ReturnNode<'a> {
     pub(crate) token: Token<'a>,
-    pub(crate) expression: ExpressionNode<'a>,
+    pub(crate) expression: Option<ExpressionNode<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -65,6 +65,11 @@ pub(crate) enum ExpressionNode<'a> {
         lhs: Box<ExpressionNode<'a>>,
         rhs: Box<ExpressionNode<'a>>,
         operator: CompareOperator,
+    },
+    IfBranch {
+        token: Token<'a>,
+        if_branches: Vec<(Box<ExpressionNode<'a>>, Box<BlockNode<'a>>)>,
+        else_branch: Option<Box<BlockNode<'a>>>,
     },
 }
 

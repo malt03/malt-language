@@ -1,5 +1,5 @@
 use std::{collections::HashMap, iter::FromIterator};
-use super::error::{Result, Error};
+use super::{error::Result, scope::Scope};
 use inkwell::{types::{BasicTypeEnum, FunctionType, BasicType, BasicMetadataTypeEnum}, context::Context, module::Module, values::{FunctionValue, BasicValueEnum, BasicMetadataValueEnum}, builder::Builder};
 
 use crate::compiler::{syntax_tree::FunctionNode, tokens::Token};
@@ -13,16 +13,16 @@ pub(crate) struct Function<'a, 'ctx> {
 }
 
 impl<'a, 'ctx> Function<'a, 'ctx> {
-    pub(crate) fn new(type_map: &TypeMap<'a>, node: &FunctionNode<'a>, context: &'ctx Context, module: &Module<'ctx>) -> Result<'a, Function<'a, 'ctx>> {
+    pub(crate) fn new<'module>(scope: &Scope<'a, 'module, 'ctx>, node: &FunctionNode<'a>, context: &'ctx Context, module: &Module<'ctx>) -> Result<'a, Function<'a, 'ctx>> {
         let name = node.name.value();
         let return_type = node.return_type.as_ref()
             .map_or(
                 Ok(VoidableType::Void),
-                |t| type_map.get(t).map(VoidableType::Type),
+                |t| scope.get_type(t).map(VoidableType::Type),
             )?;
         
         let arguments = node.arguments.iter().map(|arg| {
-            Ok((arg.name.value(), type_map.get(&arg.typ)?))
+            Ok((arg.name.value(), scope.get_type(&arg.typ)?))
         }).collect::<Result<Vec<(&'a str, Type)>>>()?;
 
         let param_types = arguments.iter().map(|(_, typ)| {
@@ -66,8 +66,8 @@ impl<'a> TypeMap<'a> {
         TypeMap { map }
     }
 
-    pub(crate) fn get(&self, token: &Token<'a>) -> Result<'a, Type> {
-        self.map.get(token.value()).map(|t| *t).ok_or(Error::type_not_found(token))
+    pub(crate) fn get(&self, token: &Token<'a>) -> Option<Type> {
+        self.map.get(token.value()).map(|t| *t)
     }
 }
 
@@ -100,6 +100,55 @@ impl<'ctx> VoidableType {
         match self {
             VoidableType::Type(typ) => typ.to_basic_type_enum(context).fn_type(param_types, false),
             VoidableType::Void => context.void_type().fn_type(param_types, false),
+        }
+    }
+
+    pub(crate) fn is_void(&self) -> bool {
+        if let VoidableType::Type(_) = self { false } else { true }
+    }
+
+    pub(crate) fn is_type(&self) -> bool {
+        match self {
+            VoidableType::Type(_) => true,
+            _ => false,
+        }
+    }
+
+    pub(crate) fn to_str(&self) -> &'static str {
+        match self {
+            VoidableType::Type(typ) => typ.to_str(),
+            VoidableType::Void => "Void",
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum ExpectedType {
+    Required,
+    None,
+    Type(Type),
+}
+
+impl ExpectedType {
+    pub(crate) fn to_str(&self) -> &'static str {
+        match self {
+            ExpectedType::Type(typ) => typ.to_str(),
+            ExpectedType::None => "None",
+            ExpectedType::Required => "Any",
+        }
+    }
+
+    pub(crate) fn is_none(&self) -> bool {
+        match self {
+            ExpectedType::None => true,
+            _ => false,
+        }
+    }
+
+    pub(crate) fn is_required(&self) -> bool {
+        match self {
+            ExpectedType::Required => true,
+            _ => false,
         }
     }
 }

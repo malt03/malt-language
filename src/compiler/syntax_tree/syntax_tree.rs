@@ -75,6 +75,7 @@ impl<'a> SyntaxTree<'a> {
         SyntaxTree::skip_newlines(tokens)?;
 
         let block = SyntaxTree::block(tokens)?;
+        SyntaxTree::confirm_kind(TokenKind::NewLine, &tokens.next()?, tokens)?;
 
         Ok(FunctionNode {
             name,
@@ -132,16 +133,20 @@ impl<'a> SyntaxTree<'a> {
         SyntaxTree::skip_newlines(tokens)?;
         let close = tokens.next()?;
         SyntaxTree::confirm_kind(TokenKind::CloseBrace, &close, tokens)?;
-        SyntaxTree::confirm_kind(TokenKind::NewLine, &tokens.next()?, tokens)?;
 
-        Ok(BlockNode { statements, ret, close  })
+        Ok(BlockNode { statements, ret, close })
     }
 
     fn ret(tokens: &mut PeekableTokens<'a>) -> Result<'a, ReturnNode<'a>> {
         let token = tokens.next()?;
         SyntaxTree::confirm_kind(TokenKind::Return, &token, tokens)?;
-        let expression = SyntaxTree::expression(tokens)?;
-        Ok(ReturnNode { token, expression })
+        let kind = tokens.peek(0)?.kind;
+        if kind == TokenKind::NewLine || kind == TokenKind::CloseBrace {
+            Ok(ReturnNode { token, expression: None })
+        } else {
+            let expression = SyntaxTree::expression(tokens)?;
+            Ok(ReturnNode { token, expression: Some(expression) })
+        }
     }
 
     fn statement(tokens: &mut PeekableTokens<'a>) -> Result<'a, StatementNode<'a>> {
@@ -267,6 +272,28 @@ impl<'a> SyntaxTree<'a> {
         }
     }
 
+    fn if_branch(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
+        let if_token = tokens.next()?;
+        SyntaxTree::confirm_kind(TokenKind::If, &if_token, tokens)?;
+        let if_branch = (Box::new(SyntaxTree::expression(tokens)?), Box::new(SyntaxTree::block(tokens)?));
+        SyntaxTree::skip_newlines(tokens)?;
+        
+        let mut if_branches: Vec<(Box<ExpressionNode<'a>>, Box<BlockNode<'a>>)> = vec![if_branch];
+        
+        while tokens.peek(0)?.kind == TokenKind::Elsif {
+            tokens.next()?;
+            if_branches.push((Box::new(SyntaxTree::expression(tokens)?), Box::new(SyntaxTree::block(tokens)?)));
+            SyntaxTree::skip_newlines(tokens)?;
+        }
+
+        let else_branch = if tokens.peek(0)?.kind == TokenKind::Else {
+            tokens.next()?;
+            Some(Box::new(SyntaxTree::block(tokens)?))
+        } else { None };
+
+        Ok(ExpressionNode::IfBranch { token: if_token, if_branches, else_branch })
+    }
+
     fn unary(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
         let token = tokens.peek(0)?;
         match token.kind {
@@ -323,6 +350,7 @@ impl<'a> SyntaxTree<'a> {
                     Ok(ExpressionNode::Identifier(token))
                 }
             },
+            TokenKind::If => SyntaxTree::if_branch(tokens),
             _ => {
                 let token = tokens.next()?;
                 Err(Error::unexpected_token([

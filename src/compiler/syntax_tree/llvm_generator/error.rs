@@ -8,6 +8,7 @@ pub enum Error<'a> {
     UnexpectedType { expected_type: &'a str, typ: &'a str, cursor: usize, text: &'a str },
     UnexpectedArgumentsLength { expected_length: usize, length: usize, cursor: usize, text: &'a str },
     UnexpectedLabel { expected_label: &'a str, label: &'a str, cursor: usize, text: &'a str },
+    AllReturn { cursor: usize, text: &'a str },
 }
 
 impl<'a> Error<'a> {
@@ -33,6 +34,10 @@ impl<'a> Error<'a> {
 
     pub(crate) fn unexpected_label(expected_label: &'a str, label: &Token<'a>) -> Error<'a> {
         Error::UnexpectedLabel { expected_label, label: label.value(), cursor: label.range.start, text: label.text }
+    }
+
+    pub(crate) fn all_return(token: &Token<'a>) -> Error<'a> {
+        Error::AllReturn { cursor: token.range.start, text: token.text }
     }
 }
 
@@ -95,6 +100,12 @@ impl<'a> std::fmt::Display for Error<'a> {
                     write!(f, "unexpected label found. line: {}\n", line_number)?;
                     write!(f, "Expected: {}\n", expected_label)?;
                     write!(f, "Found: {}\n", label)?;
+                    Ok(())
+                }),
+            Error::AllReturn{cursor, text} =>
+                line_error(f, cursor, text, |line_number, f| {
+                    write!(f, "Return in all branches. line: {}\n", line_number)?;
+                    write!(f, "Instead, write `return if {{ a }} else {{ b }}`.\n")?;
                     Ok(())
                 }),
         }

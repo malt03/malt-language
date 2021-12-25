@@ -25,6 +25,9 @@ pub enum TokenKind {
     Function,
     Return,
     True,
+    If,
+    Elsif,
+    Else,
     False,
     EOF,
 }
@@ -58,6 +61,9 @@ impl ToString for TokenKind {
             TokenKind::Return => "'return'".into(),
             TokenKind::True => "true".into(),
             TokenKind::False => "false".into(),
+            TokenKind::If => "if".into(),
+            TokenKind::Elsif => "elsif".into(),
+            TokenKind::Else => "else".into(),
             TokenKind::EOF => "eof".into(),
         }
     }

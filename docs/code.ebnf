@@ -1,22 +1,22 @@
 module              = { {'\n'} function {'\n'} }
-function            = 'fn' identifier '(' {'\n'} arguments {'\n'} ')' (':' type)? {'\n'} block
+function            = 'fn' identifier '(' {'\n'} arguments {'\n'} ')' (':' type)? {'\n'} block '\n'
 arguments           = (value_definition { ',' {'\n'} value_definition })?
 value_definition    = identifier ':' type
-block               = '{' {'\n'} ((statement { '\n' {'\n'} statement } ('\n' {'\n'} return_statement)?) | return_statement)? {'\n'} '}' '\n'
+block               = '{' {'\n'} ((statement { '\n' {'\n'} statement } ('\n' {'\n'} return_statement)?) | return_statement)? {'\n'} '}'
 statement           = expression | assign
 assign              = identifier (':' type)? '=' expression
-return_statement    = 'return' expression
+return_statement    = 'return' expression?
 expression          = equality
 equality            = relational ("==" {'\n'} relational | "!=" {'\n'} relational)?
 relational          = add ("<" {'\n'} add | "<=" {'\n'} add | ">" {'\n'} add | ">=" {'\n'} add)?
 add                 = multiply { '+' {'\n'} multiply | '-' {'\n'} multiply }
 multiply            = unary { '*' {'\n'} unary | '/' {'\n'} unary }
 unary               = ( '+' | '-' )? primary
-primary             = num | identifier | function_call | '(' {'\n'} expression {'\n'} ')'
+primary             = num | identifier | function_call | if_branch | '(' {'\n'} expression {'\n'} ')'
 function_call       = identifier '(' call_arguments? ')'
 call_arguments      = {'\n'} call_argument { ',' {'\n'} call_argument } ','? {'\n'}
 call_argument       = identifier ':' expression
-# if_branch           = if expression 
+if_branch           = 'if' expression block {'\n'} { 'elsif' expression block {'\n'} } ('else' block {'\n'})?
 
 
 module              = { {'\n'} function }
