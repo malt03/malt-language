@@ -7,7 +7,7 @@ use super::super::super::tokens::Token;
 
 pub(crate) struct ScopeValues<'a, 'ctx> {
     local_values: HashMap<&'a str, (Type, BasicValueEnum<'ctx>)>,
-    functions: HashMap<&'a str, Function<'a, 'ctx>>,
+    functions: HashMap<String, Function<'a, 'ctx>>,
     type_map: TypeMap<'a>,
 }
 
@@ -18,7 +18,7 @@ impl<'a, 'ctx> ScopeValues<'a, 'ctx> {
 
     pub(crate) fn new(
         local_values: HashMap<&'a str, (Type, BasicValueEnum<'ctx>)>,
-        functions: HashMap<&'a str, Function<'a, 'ctx>>,
+        functions: HashMap<String, Function<'a, 'ctx>>,
     ) -> ScopeValues<'a, 'ctx> {
         ScopeValues { local_values, functions, type_map: TypeMap::new() }
     }
@@ -68,8 +68,8 @@ impl<'a, 'module, 'ctx> Scope<'a, 'module, 'ctx> {
         self.values.local_values.insert(name, value);
     }
 
-    pub(crate) fn get_function<'s>(&'s self, token: &Token<'a>) -> Result<'a, &'s Function<'a, 'ctx>> {
-        self.search(|scope| scope.functions.get(token.value())).ok_or(Error::function_not_found(token))
+    pub(crate) fn get_function<'s>(&'s self, token: &Token<'a>, name_with_arguments: &String) -> Result<'a, &'s Function<'a, 'ctx>> {
+        self.search(|scope| scope.functions.get(name_with_arguments)).ok_or(Error::function_not_found(token))
     }
 
     pub(crate) fn get_local_value(&self, token: &Token<'a>) -> Result<'a, &(Type, BasicValueEnum<'ctx>)> {

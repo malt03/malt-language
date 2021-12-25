@@ -17,7 +17,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
             ExpressionNode::Int(token) => self.int(expected_type, token),
             ExpressionNode::Double(token) => self.double(expected_type, token),
             ExpressionNode::Identifier(token) => self.identifier(expected_type, scope, token),
-            ExpressionNode::FunctionCall { token, arguments } => self.function_call(expected_type, scope, token, arguments),
+            ExpressionNode::FunctionCall { token, arguments, name_with_arguments } => self.function_call(expected_type, scope, token, arguments, name_with_arguments),
             ExpressionNode::UnaryExpr { child, operator, token } => self.unary_expr(expected_type, scope, token, child, operator),
             ExpressionNode::BinaryExpr { lhs, rhs, operator, token } => self.binary_expr(expected_type, scope, token, lhs, rhs, operator),
             ExpressionNode::CompareExpr { token, lhs, rhs, operator } => self.compare_expr(expected_type, scope, token, lhs, rhs, operator),
@@ -89,8 +89,9 @@ impl<'ctx> LLVMGenerator<'ctx> {
         scope: &Scope<'a, 'module, 'ctx>,
         token: &Token<'a>,
         arguments: &Vec<CallArgumentNode<'a>>,
+        name_with_arguments: &String,
     ) -> Result<'a, Option<(Type, BasicValueEnum<'ctx>)>> {
-        let function = scope.get_function(token)?;
+        let function = scope.get_function(token, name_with_arguments)?;
         LLVMGenerator::validate_expected_type(expected_type, function.return_type, token)?;
         
         if function.arguments.len() != arguments.len() {

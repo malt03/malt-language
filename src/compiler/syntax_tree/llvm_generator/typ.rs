@@ -6,7 +6,7 @@ use crate::compiler::{syntax_tree::FunctionNode, tokens::Token};
 
 #[derive(Clone)]
 pub(crate) struct Function<'a, 'ctx> {
-    pub(crate) name: &'a str,
+    pub(crate) name_with_arguments: String,
     pub(crate) return_type: VoidableType,
     pub(crate) arguments: Vec<(&'a str, Type)>,
     pub(crate) val: FunctionValue<'ctx>,
@@ -14,7 +14,8 @@ pub(crate) struct Function<'a, 'ctx> {
 
 impl<'a, 'ctx> Function<'a, 'ctx> {
     pub(crate) fn new<'module>(scope: &Scope<'a, 'module, 'ctx>, node: &FunctionNode<'a>, context: &'ctx Context, module: &Module<'ctx>) -> Result<'a, Function<'a, 'ctx>> {
-        let name = node.name.value();
+        let name_with_arguments = node.name_with_arguments.clone();
+
         let return_type = node.return_type.as_ref()
             .map_or(
                 Ok(VoidableType::Void),
@@ -30,9 +31,9 @@ impl<'a, 'ctx> Function<'a, 'ctx> {
         }).collect::<Vec<BasicMetadataTypeEnum>>();
         
         let ty = return_type.type_to_fn_type(context, param_types.as_slice());
-        let val = module.add_function(name, ty, None);
+        let val = module.add_function(&name_with_arguments, ty, None);
 
-        Ok(Function { name, return_type, arguments, val })
+        Ok(Function { name_with_arguments, return_type, arguments, val })
     }
 
     pub(crate) fn build_call(&self, builder: &Builder<'ctx>, arguments: &[BasicMetadataValueEnum<'ctx>]) -> Option<(Type, BasicValueEnum<'ctx>)> {

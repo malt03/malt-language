@@ -27,9 +27,8 @@ impl<'ctx> LLVMGenerator<'ctx> {
         let scope = Scope::module(ScopeValues::empty());
 
         let functions: HashMap<_, _> = node.functions.iter().map(|function| {
-            let name = function.name.value();
             let function = Function::new(&scope, function, self.context, &module)?;
-            Ok((name, function))
+            Ok((function.name_with_arguments.clone(), function))
         }).collect::<Result<HashMap<_, _>>>()?;
 
         let scope = Scope::module(ScopeValues::new(HashMap::new(), functions));
@@ -41,7 +40,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
     }
 
     fn function<'a, 'module>(&self, node: &FunctionNode<'a>, scope: &Scope<'a, 'module, 'ctx>) -> Result<'a, ()> {
-        let function = scope.get_function(&node.name)?;
+        let function = scope.get_function(&node.name, &node.name_with_arguments)?;
 
         let local_values: HashMap<&'a str, (Type, BasicValueEnum<'ctx>)> = function.val.get_param_iter().enumerate().map(|(i, arg)| {
             let (name, typ) = function.arguments[i];

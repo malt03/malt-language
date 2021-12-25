@@ -19,6 +19,15 @@ pub(crate) struct SyntaxTree<'a> {
     pub(crate) root: ModuleNode<'a>,
 }
 
+fn create_name_with_arguments<'a, I: Iterator<Item = String>>(name: &Token<'a>, arguments: I) -> String {
+    let arguments_name = arguments.collect::<Vec<_>>().join("-");
+    if arguments_name.is_empty() {
+        name.value().to_string()
+    } else {
+        format!("{}-{}", name.value(), arguments_name)
+    }
+}
+
 impl<'a> SyntaxTree<'a> {
     pub(crate) fn new(mut tokens: PeekableTokens<'a>) -> Result<'a, SyntaxTree<'a>> {
         let root = SyntaxTree::module(&mut tokens)?;
@@ -77,9 +86,15 @@ impl<'a> SyntaxTree<'a> {
         let block = SyntaxTree::block(tokens)?;
         SyntaxTree::confirm_kind(TokenKind::NewLine, &tokens.next()?, tokens)?;
 
+        let name_with_arguments = create_name_with_arguments(
+            &name,
+            arguments.iter().map(|arg| arg.name.value().to_string()),
+        );
+
         Ok(FunctionNode {
             name,
             arguments,
+            name_with_arguments,
             return_type,
             block,
         })
@@ -376,7 +391,12 @@ impl<'a> SyntaxTree<'a> {
             arguments
         };
         
-        Ok(ExpressionNode::FunctionCall {token, arguments })
+        let name_with_arguments = create_name_with_arguments(
+            &token,
+            arguments.iter().map(|arg| arg.label.value().to_string()),
+        );
+
+        Ok(ExpressionNode::FunctionCall {token, arguments, name_with_arguments})
     }
 
     fn call_arguments(tokens: &mut PeekableTokens<'a>) -> Result<'a, Vec<CallArgumentNode<'a>>> {

@@ -10,6 +10,7 @@ pub(crate) struct ModuleNode<'a> {
 pub(crate) struct FunctionNode<'a> {
     pub(crate) name: Token<'a>,
     pub(crate) arguments: Vec<ValueDefinitionNode<'a>>,
+    pub(crate) name_with_arguments: String,
     pub(crate) return_type: Option<Token<'a>>,
     pub(crate) block: BlockNode<'a>,
 }
@@ -48,6 +49,7 @@ pub(crate) enum ExpressionNode<'a> {
     FunctionCall {
         token: Token<'a>,
         arguments: Vec<CallArgumentNode<'a>>,
+        name_with_arguments: String,
     },
     UnaryExpr {
         token: Token<'a>,
