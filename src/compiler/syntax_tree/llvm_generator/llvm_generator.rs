@@ -63,7 +63,12 @@ impl<'ctx> LLVMGenerator<'ctx> {
         }
     }
 
-    fn statement<'a, 'module>(&self, node: &StatementNode<'a>, expected_type: ExpectedType, scope: &mut Scope<'a, 'module, 'ctx>) -> Result<'a, Option<(Type, BasicValueEnum<'ctx>)>> {
+    fn statement<'a, 'module>(
+        &self,
+        node: &StatementNode<'a>,
+        expected_type: ExpectedType<'a, 'ctx>,
+        scope: &mut Scope<'a, 'module, 'ctx>,
+    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
         match node {
             StatementNode::Expression(expression) => {
                 self.expression(expression, expected_type, scope)
@@ -84,7 +89,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
         }
     }
 
-    pub(super) fn validate_expected_type<'a>(expected_type: ExpectedType, type_: VoidableType, token: &Token<'a>) -> Result<'a, ()> {
+    pub(super) fn validate_expected_type<'a>(expected_type: ExpectedType<'a, 'ctx>, type_: VoidableType<'a, 'ctx>, token: &Token<'a>) -> Result<'a, ()> {
         match expected_type {
             ExpectedType::Type(expected_type) => {
                 if let VoidableType::Type(type_) = type_ {
@@ -110,9 +115,9 @@ impl<'ctx> LLVMGenerator<'ctx> {
     pub(super) fn block<'a, 'module>(
         &self,
         node: &BlockNode<'a>,
-        expected_type: ExpectedType,
+        expected_type: ExpectedType<'a, 'ctx>,
         scope: &Scope<'a, 'module, 'ctx>,
-    ) -> Result<'a, (bool, Option<(Type, BasicValueEnum<'ctx>)>)> {
+    ) -> Result<'a, (bool, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>)> {
         let mut scope = Scope::child(ScopeValues::empty(), scope);
 
         let has_return = node.ret.as_ref().is_some();

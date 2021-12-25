@@ -1,14 +1,14 @@
 use std::{collections::HashMap, iter::FromIterator};
 use super::{error::Result, scope::Scope};
-use inkwell::{types::{BasicTypeEnum, FunctionType, BasicType, BasicMetadataTypeEnum}, context::Context, module::Module, values::{FunctionValue, BasicValueEnum, BasicMetadataValueEnum}, builder::Builder};
+use inkwell::{types::{BasicTypeEnum, FunctionType, BasicType, BasicMetadataTypeEnum, StructType}, context::Context, module::Module, values::{FunctionValue, BasicValueEnum, BasicMetadataValueEnum}, builder::Builder};
 
 use crate::compiler::{tokens::Token, syntax_tree::syntax_tree_node::FunctionNode};
 
 #[derive(Clone)]
 pub(crate) struct Function<'a, 'ctx> {
     pub(crate) name_with_arguments: String,
-    pub(crate) return_type: VoidableType,
-    pub(crate) arguments: Vec<(&'a str, Type)>,
+    pub(crate) return_type: VoidableType<'a, 'ctx>,
+    pub(crate) arguments: Vec<(&'a str, Type<'a, 'ctx>)>,
     pub(crate) val: FunctionValue<'ctx>,
 }
 
@@ -36,7 +36,7 @@ impl<'a, 'ctx> Function<'a, 'ctx> {
         Ok(Function { name_with_arguments, return_type, arguments, val })
     }
 
-    pub(crate) fn build_call(&self, builder: &Builder<'ctx>, arguments: &[BasicMetadataValueEnum<'ctx>]) -> Option<(Type, BasicValueEnum<'ctx>)> {
+    pub(crate) fn build_call(&self, builder: &Builder<'ctx>, arguments: &[BasicMetadataValueEnum<'ctx>]) -> Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)> {
         let call = builder.build_call(self.val, arguments, "calltmp");
         if let VoidableType::Type(type_) = self.return_type {
             Some((type_, call.try_as_basic_value().left().unwrap()))
@@ -47,18 +47,19 @@ impl<'a, 'ctx> Function<'a, 'ctx> {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub(crate) enum Type {
+pub(crate) enum Type<'a, 'ctx> {
     Int,
     Double,
     Bool,
+    Struct(&'a str, StructType<'ctx>),
 }
 
-pub(crate) struct TypeMap<'a> {
-    map: HashMap<&'a str, Type>,
+pub(crate) struct TypeMap<'a, 'ctx> {
+    map: HashMap<&'a str, Type<'a, 'ctx>>,
 }
 
-impl<'a> TypeMap<'a> {
-    pub(crate) fn new() -> TypeMap<'a> {
+impl<'a, 'ctx> TypeMap<'a, 'ctx> {
+    pub(crate) fn new() -> TypeMap<'a, 'ctx> {
         let map = HashMap::from_iter([
             ("Int", Type::Int),
             ("Double", Type::Double),
@@ -67,36 +68,38 @@ impl<'a> TypeMap<'a> {
         TypeMap { map }
     }
 
-    pub(crate) fn get(&self, token: &Token<'a>) -> Option<Type> {
+    pub(crate) fn get(&self, token: &Token<'a>) -> Option<Type<'a, 'ctx>> {
         self.map.get(token.value()).map(|t| *t)
     }
 }
 
-impl<'ctx> Type {
+impl<'a, 'ctx> Type<'a, 'ctx> {
     pub(crate) fn to_basic_type_enum(&self, context: &'ctx Context) -> BasicTypeEnum<'ctx> {
         match self {
             Type::Int => context.i64_type().into(),
             Type::Double => context.f64_type().into(),
             Type::Bool => context.bool_type().into(),
+            Type::Struct(_, t) => t.as_basic_type_enum(),
         }
     }
 
-    pub(crate) fn to_str(&self) -> &'static str {
+    pub(crate) fn to_str(&self) -> &'a str {
         match self {
             Type::Int => "Int",
             Type::Double => "Double",
             Type::Bool => "Bool",
+            Type::Struct(name, _) => name,
         }
     }
 }
 
 #[derive(Clone, Copy)]
-pub(crate) enum VoidableType {
+pub(crate) enum VoidableType<'a, 'ctx> {
     Void,
-    Type(Type),
+    Type(Type<'a, 'ctx>),
 }
 
-impl<'ctx> VoidableType {
+impl<'a, 'ctx> VoidableType<'a, 'ctx> {
     fn type_to_fn_type(&self, context: &'ctx Context, param_types: &[BasicMetadataTypeEnum<'ctx>]) -> FunctionType<'ctx> {
         match self {
             VoidableType::Type(type_) => type_.to_basic_type_enum(context).fn_type(param_types, false),
@@ -115,7 +118,7 @@ impl<'ctx> VoidableType {
         }
     }
 
-    pub(crate) fn to_str(&self) -> &'static str {
+    pub(crate) fn to_str(&self) -> &'a str {
         match self {
             VoidableType::Type(type_) => type_.to_str(),
             VoidableType::Void => "Void",
@@ -124,14 +127,14 @@ impl<'ctx> VoidableType {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) enum ExpectedType {
+pub(crate) enum ExpectedType<'a, 'ctx> {
     Required,
     None,
-    Type(Type),
+    Type(Type<'a, 'ctx>),
 }
 
-impl ExpectedType {
-    pub(crate) fn to_str(&self) -> &'static str {
+impl<'a, 'ctx> ExpectedType<'a, 'ctx> {
+    pub(crate) fn to_str(&self) -> &'a str {
         match self {
             ExpectedType::Type(type_) => type_.to_str(),
             ExpectedType::None => "None",

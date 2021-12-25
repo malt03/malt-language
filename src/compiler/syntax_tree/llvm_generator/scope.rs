@@ -6,9 +6,9 @@ use inkwell::values::BasicValueEnum;
 use super::super::super::tokens::Token;
 
 pub(crate) struct ScopeValues<'a, 'ctx> {
-    local_values: HashMap<&'a str, (Type, BasicValueEnum<'ctx>)>,
+    local_values: HashMap<&'a str, (Type<'a, 'ctx>, BasicValueEnum<'ctx>)>,
     functions: HashMap<String, Function<'a, 'ctx>>,
-    type_map: TypeMap<'a>,
+    type_map: TypeMap<'a, 'ctx>,
 }
 
 impl<'a, 'ctx> ScopeValues<'a, 'ctx> {
@@ -17,7 +17,7 @@ impl<'a, 'ctx> ScopeValues<'a, 'ctx> {
     }
 
     pub(crate) fn new(
-        local_values: HashMap<&'a str, (Type, BasicValueEnum<'ctx>)>,
+        local_values: HashMap<&'a str, (Type<'a, 'ctx>, BasicValueEnum<'ctx>)>,
         functions: HashMap<String, Function<'a, 'ctx>>,
     ) -> ScopeValues<'a, 'ctx> {
         ScopeValues { local_values, functions, type_map: TypeMap::new() }
@@ -64,7 +64,7 @@ impl<'a, 'module, 'ctx> Scope<'a, 'module, 'ctx> {
         }
     }
 
-    pub(crate) fn add_local_value(&mut self, name: &'a str, value: (Type, BasicValueEnum<'ctx>)) {
+    pub(crate) fn add_local_value(&mut self, name: &'a str, value: (Type<'a, 'ctx>, BasicValueEnum<'ctx>)) {
         self.values.local_values.insert(name, value);
     }
 
@@ -72,11 +72,11 @@ impl<'a, 'module, 'ctx> Scope<'a, 'module, 'ctx> {
         self.search(|scope| scope.functions.get(name_with_arguments)).ok_or(Error::function_not_found(token))
     }
 
-    pub(crate) fn get_local_value(&self, token: &Token<'a>) -> Result<'a, &(Type, BasicValueEnum<'ctx>)> {
+    pub(crate) fn get_local_value(&self, token: &Token<'a>) -> Result<'a, &(Type<'a, 'ctx>, BasicValueEnum<'ctx>)> {
         self.search(|scope| scope.local_values.get(token.value())).ok_or(Error::value_not_found(token))
     }
 
-    pub(crate) fn get_type(&self, token: &Token<'a>) -> Result<'a, Type> {
+    pub(crate) fn get_type(&self, token: &Token<'a>) -> Result<'a, Type<'a, 'ctx>> {
         self.search(|scope| scope.type_map.get(token)).ok_or(Error::type_not_found(token))
     }
 }
