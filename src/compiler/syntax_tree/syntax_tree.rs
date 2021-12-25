@@ -291,14 +291,12 @@ impl<'a> SyntaxTree<'a> {
         let if_token = tokens.next()?;
         SyntaxTree::confirm_kind(TokenKind::If, &if_token, tokens)?;
         let if_branch = (Box::new(SyntaxTree::expression(tokens)?), Box::new(SyntaxTree::block(tokens)?));
-        SyntaxTree::skip_newlines(tokens)?;
-        
+
         let mut if_branches: Vec<(Box<ExpressionNode<'a>>, Box<BlockNode<'a>>)> = vec![if_branch];
         
         while tokens.peek(0)?.kind == TokenKind::Elsif {
             tokens.next()?;
             if_branches.push((Box::new(SyntaxTree::expression(tokens)?), Box::new(SyntaxTree::block(tokens)?)));
-            SyntaxTree::skip_newlines(tokens)?;
         }
 
         let else_branch = if tokens.peek(0)?.kind == TokenKind::Else {

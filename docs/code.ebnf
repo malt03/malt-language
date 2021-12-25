@@ -16,7 +16,7 @@ primary             = num | identifier | function_call | if_branch | '(' {'\n'} 
 function_call       = identifier '(' call_arguments? ')'
 call_arguments      = {'\n'} call_argument { ',' {'\n'} call_argument } ','? {'\n'}
 call_argument       = identifier ':' expression
-if_branch           = 'if' expression block {'\n'} { 'elsif' expression block {'\n'} } ('else' block {'\n'})?
+if_branch           = 'if' expression block { 'elsif' expression block } ('else' block )?
 
 
 module              = { {'\n'} function }
