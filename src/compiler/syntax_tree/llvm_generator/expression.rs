@@ -2,15 +2,15 @@ use crate::compiler::{tokens::Token, syntax_tree::{binary_operator::{CompareOper
 
 use super::{error::{Result, Error}, typ::{Type, VoidableType, ExpectedType}, scope::Scope, LLVMGenerator};
 
-use inkwell::{values::{BasicMetadataValueEnum, BasicValueEnum, BasicValue}, basic_block::BasicBlock};
+use inkwell::{values::{BasicMetadataValueEnum, BasicValueEnum, BasicValue, AggregateValue}, basic_block::BasicBlock};
 
 impl<'ctx> LLVMGenerator<'ctx> {
-    pub(super) fn expression<'a, 'module>(
+    pub(super) fn expression<'a, 'module, 's>(
         &self,
         node: &ExpressionNode<'a>,
-        expected_type: ExpectedType<'a, 'ctx>,
-        scope: &Scope<'a, 'module, 'ctx>,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
+        scope: &Scope<'a, 'module, 'ctx, 's>,
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
         match node {
             ExpressionNode::Bool(value, token) => self.bool(expected_type, value, token),
             ExpressionNode::Int(token) => self.int(expected_type, token),
@@ -21,26 +21,26 @@ impl<'ctx> LLVMGenerator<'ctx> {
             ExpressionNode::BinaryExpr { lhs, rhs, operator, token } => self.binary_expr(expected_type, scope, token, lhs, rhs, operator),
             ExpressionNode::CompareExpr { token, lhs, rhs, operator } => self.compare_expr(expected_type, scope, token, lhs, rhs, operator),
             ExpressionNode::IfBranch { token, if_branches, else_branch } => self.if_branch(expected_type, scope, token, if_branches, else_branch),
-            ExpressionNode::StructProperty { instance, property } => todo!(),
-            ExpressionNode::StructConstruction { type_, arguments } => todo!(),
+            ExpressionNode::StructProperty { instance, property } => self.struct_property(expected_type, scope, instance, property),
+            ExpressionNode::StructConstruction { type_, properties } => self.struct_construction(expected_type, scope, type_, properties),
         }
     }
 
     fn bool<'a, 'module>(
         &self,
-        expected_type: ExpectedType<'a, 'ctx>,
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
         value: &bool,
         token: &Token<'a>,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
         LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(Type::Bool), token)?;
         Ok(Some((Type::Bool, self.context.bool_type().const_int(if *value { 1 } else { 0 }, false).into())))
     }
 
     fn int<'a, 'module>(
         &self,
-        expected_type: ExpectedType<'a, 'ctx>,
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
         token: &Token<'a>,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
         if let ExpectedType::Type(expected_type) = expected_type {
             match expected_type {
                 Type::Int => Ok(Some((
@@ -63,9 +63,9 @@ impl<'ctx> LLVMGenerator<'ctx> {
 
     fn double<'a, 'module>(
         &self,
-        expected_type: ExpectedType<'a, 'ctx>,
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
         token: &Token<'a>,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
         LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(Type::Double), token)?;
         Ok(Some((
             Type::Double,
@@ -73,25 +73,25 @@ impl<'ctx> LLVMGenerator<'ctx> {
         )))
     }
 
-    fn identifier<'a, 'module>(
+    fn identifier<'a, 'module, 's>(
         &self,
-        expected_type: ExpectedType<'a, 'ctx>,
-        scope: &Scope<'a, 'module, 'ctx>,
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
+        scope: &Scope<'a, 'module, 'ctx, 's>,
         token: &Token<'a>,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
         let (type_, value) = scope.get_local_value(token)?;
         LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(*type_), token)?;
         Ok(Some((*type_, value.clone())))
     }
 
-    fn function_call<'a, 'module>(
+    fn function_call<'a, 'module, 's>(
         &self,
-        expected_type: ExpectedType<'a, 'ctx>,
-        scope: &Scope<'a, 'module, 'ctx>,
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
+        scope: &Scope<'a, 'module, 'ctx, 's>,
         token: &Token<'a>,
         arguments: &Vec<CallArgumentNode<'a>>,
         name_with_arguments: &String,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
         let function = scope.get_function(token, name_with_arguments)?;
         LLVMGenerator::validate_expected_type(expected_type, function.return_type, token)?;
         
@@ -111,14 +111,14 @@ impl<'ctx> LLVMGenerator<'ctx> {
         Ok(function.build_call(&self.builder, arguments.as_slice()))
     }
 
-    fn unary_expr<'a, 'module>(
+    fn unary_expr<'a, 'module, 's>(
         &self,
-        expected_type: ExpectedType<'a, 'ctx>,
-        scope: &Scope<'a, 'module, 'ctx>,
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
+        scope: &Scope<'a, 'module, 'ctx, 's>,
         token: &Token<'a>,
         child: &Box<ExpressionNode<'a>>,
         operator: &UnaryOperator,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
         match operator {
             UnaryOperator::Minus => {
                 let (type_, child) = self.expression(child, expected_type, scope)?
@@ -138,15 +138,15 @@ impl<'ctx> LLVMGenerator<'ctx> {
         }
     }
 
-    fn binary_expr<'a, 'module>(
+    fn binary_expr<'a, 'module, 's>(
         &self,
-        expected_type: ExpectedType<'a, 'ctx>,
-        scope: &Scope<'a, 'module, 'ctx>,
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
+        scope: &Scope<'a, 'module, 'ctx, 's>,
         token: &Token<'a>,
         lhs: &Box<ExpressionNode<'a>>,
         rhs: &Box<ExpressionNode<'a>>,
         operator: &BinaryOperator,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
         let (lhs_type, lhs_value) = self.expression(lhs, expected_type, scope)?
             .ok_or(Error::unexpected_type("Comparable", "Void", token))?;
         let (_, rhs_value) = self.expression(rhs, ExpectedType::Type(lhs_type), scope)?.unwrap();
@@ -173,15 +173,15 @@ impl<'ctx> LLVMGenerator<'ctx> {
         }
     }
 
-    fn compare_expr<'a, 'module>(
+    fn compare_expr<'a, 'module, 's>(
         &self,
-        expected_type: ExpectedType<'a, 'ctx>,
-        scope: &Scope<'a, 'module, 'ctx>,
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
+        scope: &Scope<'a, 'module, 'ctx, 's>,
         token: &Token<'a>,
         lhs: &Box<ExpressionNode<'a>>,
         rhs: &Box<ExpressionNode<'a>>,
         operator: &CompareOperator,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
         LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(Type::Bool), token)?;
         
         let (lhs_type, lhs_value) = self.expression(lhs, ExpectedType::None, scope)?
@@ -201,10 +201,10 @@ impl<'ctx> LLVMGenerator<'ctx> {
         }
     }
 
-    fn if_branch_block<'a, 'module>(
+    fn if_branch_block<'a, 'module, 's>(
         &self,
-        expected_type: &mut ExpectedType<'a, 'ctx>,
-        scope: &Scope<'a, 'module, 'ctx>,
+        expected_type: &mut ExpectedType<'a, 'module, 'ctx>,
+        scope: &Scope<'a, 'module, 'ctx, 's>,
         block: &BlockNode<'a>,
         cont_block: BasicBlock<'ctx>,
         all_return: &mut bool,
@@ -223,14 +223,14 @@ impl<'ctx> LLVMGenerator<'ctx> {
         Ok(())
     }
 
-    fn if_branch<'a, 'module>(
+    fn if_branch<'a, 'module, 's>(
         &self,
-        expected_type: ExpectedType<'a, 'ctx>,
-        scope: &Scope<'a, 'module, 'ctx>,
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
+        scope: &Scope<'a, 'module, 'ctx, 's>,
         token: &Token<'a>,
         if_branches: &Vec<(Box<ExpressionNode<'a>>, Box<BlockNode<'a>>)>,
         else_branch: &Option<Box<BlockNode<'a>>>,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
         let current_function = scope.current_function.unwrap();
         let cont_block = self.context.append_basic_block(current_function.val, "cont");
 
@@ -275,13 +275,51 @@ impl<'ctx> LLVMGenerator<'ctx> {
         }
     }
 
-    fn struct_construction<'a, 'module>(
+    fn struct_property<'a, 'module, 's>(
         &self,
-        expected_type: ExpectedType<'a, 'ctx>,
-        scope: &Scope<'a, 'module, 'ctx>,
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
+        scope: &Scope<'a, 'module, 'ctx, 's>,
+        instance: &Token<'a>,
+        property: &Token<'a>,
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
+        let (type_, value) = scope.get_local_value(instance)?;
+        
+        if let Type::Struct(s) = type_ {
+            if let Some((i, type_)) = s.properties_map.get(property.value()) {
+                LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(*type_), property)?;
+                Ok(Some((*type_, value.into_struct_value().const_extract_value(&mut [*i]))))
+            } else {
+                Err(Error::no_field(s.name, property))
+            }
+        } else {
+            Err(Error::unexpected_type("struct", instance.value(), instance))
+        }
+    }
+
+    fn struct_construction<'a, 'module, 's>(
+        &self,
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
+        scope: &Scope<'a, 'module, 'ctx, 's>,
         type_: &Token<'a>,
-        arguments: &Vec<CallArgumentNode<'a>>,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
-        todo!()
+        properties: &Vec<CallArgumentNode<'a>>,
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
+        let t = scope.get_type(type_)?;
+        LLVMGenerator::validate_expected_type(expected_type, VoidableType::Type(t), type_)?;
+        let struct_ = t.as_struct(type_)?;
+        
+        let len = struct_.properties.len();
+        if len != properties.len() {
+            return Err(Error::unexpected_properties_length(struct_.properties.len(), properties.len(), type_));
+        }
+        let mut values: Vec<BasicValueEnum> = Vec::new();
+        for i in 0..len {
+            let (expected_label, type_) = struct_.properties[i];
+            if properties[i].label.value() != expected_label { return Err(Error::unexpected_label(expected_label, &properties[i].label)); }
+            let (_, value) = self.expression(&properties[i].value, ExpectedType::Type(type_), scope)?.unwrap();
+            values.push(value);
+        }
+        let value = struct_.type_.const_named_struct(values.as_slice()).as_basic_value_enum();
+        
+        Ok(Some((t, value)))
     }
 }

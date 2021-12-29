@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::compiler::syntax_tree::{syntax_tree_node::{ModuleNode, FunctionNode, StatementNode, BlockNode}, binary_operator::CompareOperator};
 
-use super::{error::{Result, Error}, typ::{Function, Type, VoidableType, ExpectedType}, scope::{ScopeValues, Scope}};
+use super::{error::{Result, Error}, typ::{Function, Type, VoidableType, ExpectedType, Struct}, scope::{ScopeValues, Scope}};
 
 use inkwell::{builder::Builder, context::Context, values::BasicValueEnum, module::Module, IntPredicate, FloatPredicate};
 use super::super::super::tokens::Token;
@@ -23,14 +23,17 @@ impl<'ctx> LLVMGenerator<'ctx> {
     pub(crate) fn module<'a>(&self, node: &ModuleNode<'a>) -> Result<'a, Module<'ctx>> {
         let module = self.context.create_module("main");
 
-        let scope = Scope::module(ScopeValues::empty());
+        let mut scope = Scope::module(ScopeValues::empty());
+
+        let structs = node.structs.iter().map(|s| Struct::new(&scope, s, self.context)).collect::<Result<Vec<Struct>>>()?;
+        for s in &structs { scope.add_struct(s) }
 
         let functions: HashMap<_, _> = node.functions.iter().map(|function| {
             let function = Function::new(&scope, function, self.context, &module)?;
             Ok((function.name_with_arguments.clone(), function))
         }).collect::<Result<HashMap<_, _>>>()?;
 
-        let scope = Scope::module(ScopeValues::new(HashMap::new(), functions));
+        scope.set_functions(functions);
         for function in &node.functions {
             self.function(function, &scope)?;
         }
@@ -38,7 +41,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
         Ok(module)
     }
 
-    fn function<'a, 'module>(&self, node: &FunctionNode<'a>, scope: &Scope<'a, 'module, 'ctx>) -> Result<'a, ()> {
+    fn function<'a, 'module, 's>(&self, node: &FunctionNode<'a>, scope: &Scope<'a, 'module, 'ctx, 's>) -> Result<'a, ()> {
         let function = scope.get_function(&node.name, &node.name_with_arguments)?;
 
         let local_values: HashMap<&'a str, (Type, BasicValueEnum<'ctx>)> = function.val.get_param_iter().enumerate().map(|(i, arg)| {
@@ -63,12 +66,12 @@ impl<'ctx> LLVMGenerator<'ctx> {
         }
     }
 
-    fn statement<'a, 'module>(
+    fn statement<'a, 'module, 's>(
         &self,
         node: &StatementNode<'a>,
-        expected_type: ExpectedType<'a, 'ctx>,
-        scope: &mut Scope<'a, 'module, 'ctx>,
-    ) -> Result<'a, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>> {
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
+        scope: &mut Scope<'a, 'module, 'ctx, 's>,
+    ) -> Result<'a, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>> {
         match node {
             StatementNode::Expression(expression) => {
                 self.expression(expression, expected_type, scope)
@@ -89,7 +92,7 @@ impl<'ctx> LLVMGenerator<'ctx> {
         }
     }
 
-    pub(super) fn validate_expected_type<'a>(expected_type: ExpectedType<'a, 'ctx>, type_: VoidableType<'a, 'ctx>, token: &Token<'a>) -> Result<'a, ()> {
+    pub(super) fn validate_expected_type<'a, 'module>(expected_type: ExpectedType<'a, 'module, 'ctx>, type_: VoidableType<'a, 'module, 'ctx>, token: &Token<'a>) -> Result<'a, ()> {
         match expected_type {
             ExpectedType::Type(expected_type) => {
                 if let VoidableType::Type(type_) = type_ {
@@ -112,12 +115,12 @@ impl<'ctx> LLVMGenerator<'ctx> {
     }
 
     // (block, has_return, last_statement)
-    pub(super) fn block<'a, 'module>(
+    pub(super) fn block<'a, 'module, 's>(
         &self,
         node: &BlockNode<'a>,
-        expected_type: ExpectedType<'a, 'ctx>,
-        scope: &Scope<'a, 'module, 'ctx>,
-    ) -> Result<'a, (bool, Option<(Type<'a, 'ctx>, BasicValueEnum<'ctx>)>)> {
+        expected_type: ExpectedType<'a, 'module, 'ctx>,
+        scope: &Scope<'a, 'module, 'ctx, 's>,
+    ) -> Result<'a, (bool, Option<(Type<'a, 'module, 'ctx>, BasicValueEnum<'ctx>)>)> {
         let mut scope = Scope::child(ScopeValues::empty(), scope);
 
         let has_return = node.ret.as_ref().is_some();

@@ -94,10 +94,12 @@ impl<'a> SyntaxTree<'a> {
 
     fn properties(tokens: &mut PeekableTokens<'a>) -> Result<'a, Vec<ValueDefinitionNode<'a>>> {
         let mut value_definition = vec![SyntaxTree::value_definition(tokens)?];
+        SyntaxTree::skip_newlines(tokens)?;
 
-        while tokens.peek(0)?.kind == TokenKind::NewLine {
-            SyntaxTree::skip_newlines(tokens)?;
+        while tokens.peek(0)?.kind != TokenKind::CloseBrace {
             value_definition.push(SyntaxTree::value_definition(tokens)?);
+            SyntaxTree::confirm_kind(TokenKind::NewLine, &tokens.next()?, tokens)?;
+            SyntaxTree::skip_newlines(tokens)?;
         }
         Ok(value_definition)
     }
@@ -349,8 +351,8 @@ impl<'a> SyntaxTree<'a> {
     }
 
     fn struct_construction(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {
-        let (type_, arguments) = SyntaxTree::call(TokenKind::Identifier, tokens)?;
-        Ok(ExpressionNode::StructConstruction {type_, arguments})
+        let (type_, properties) = SyntaxTree::call(TokenKind::Type, tokens)?;
+        Ok(ExpressionNode::StructConstruction {type_, properties})
     }
 
     fn unary(tokens: &mut PeekableTokens<'a>) -> Result<'a, ExpressionNode<'a>> {

@@ -9,6 +9,8 @@ pub enum Error<'a> {
     UnexpectedArgumentsLength { expected_length: usize, length: usize, cursor: usize, text: &'a str },
     UnexpectedLabel { expected_label: &'a str, label: &'a str, cursor: usize, text: &'a str },
     AllReturn { cursor: usize, text: &'a str },
+    UnexpectedPropertiesLength { expected_length: usize, length: usize, cursor: usize, text: &'a str },
+    NoField { struct_name: &'a str, field: &'a str, cursor: usize, text: &'a str },
 }
 
 impl<'a> Error<'a> {
@@ -38,6 +40,14 @@ impl<'a> Error<'a> {
 
     pub(crate) fn all_return(token: &Token<'a>) -> Error<'a> {
         Error::AllReturn { cursor: token.range.start, text: token.text }
+    }
+
+    pub(crate) fn unexpected_properties_length(expected_length: usize, length: usize, token: &Token<'a>) -> Error<'a> {
+        Error::UnexpectedPropertiesLength { expected_length, length, cursor: token.range.start, text: token.text }
+    }
+
+    pub(crate) fn no_field(struct_name: &'a str, field: &Token<'a>) -> Error<'a> {
+        Error::NoField { struct_name, field: field.value(), cursor: field.range.start, text: field.text }
     }
 }
 
@@ -79,7 +89,7 @@ impl<'a> std::fmt::Display for Error<'a> {
                 }),
             Error::TypeNotFound{name, cursor, text} =>
                 line_error(f, cursor, text, |line_number, f| {
-                    write!(f, "cannot find function `{}` in this scope. line: {}\n", name, line_number)
+                    write!(f, "cannot find type `{}` in this scope. line: {}\n", name, line_number)
                 }),
             Error::UnexpectedType{expected_type, type_, cursor, text} =>
                 line_error(f, cursor, text, |line_number, f| {
@@ -90,7 +100,7 @@ impl<'a> std::fmt::Display for Error<'a> {
                 }),
             Error::UnexpectedArgumentsLength{expected_length, length, cursor, text} =>
                 line_error(f, cursor, text, |line_number, f| {
-                    write!(f, "unexpected type found. line: {}\n", line_number)?;
+                    write!(f, "unexpected arguments length. line: {}\n", line_number)?;
                     write!(f, "Expected: {}\n", expected_length)?;
                     write!(f, "Found: {}\n", length)?;
                     Ok(())
@@ -108,6 +118,17 @@ impl<'a> std::fmt::Display for Error<'a> {
                     write!(f, "Instead, write `return if {{ a }} else {{ b }}`.\n")?;
                     Ok(())
                 }),
+            Error::UnexpectedPropertiesLength{expected_length, length, cursor, text} =>
+                line_error(f, cursor, text, |line_number, f| {
+                    write!(f, "unexpected properties length. line: {}\n", line_number)?;
+                    write!(f, "Expected: {}\n", expected_length)?;
+                    write!(f, "Found: {}\n", length)?;
+                    Ok(())
+                }),
+            Error::NoField{struct_name, field, cursor, text} =>
+                line_error(f, cursor, text, |line_number, f| 
+                    write!(f, "no field `{}` on type `{}`. line: {}\n", field, struct_name, line_number)
+                ),
         }
     }
 }

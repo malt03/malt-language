@@ -69,9 +69,9 @@ pub fn compile<'a>(text: &'a str) -> Result<'a, ()> {
     }
 
     // unsafe {
-    //     llvm.module.create_execution_engine()?.run_function(main_function, &[]);
+        // module.create_execution_engine()?.run_function(module.get_first_function().unwrap(), &[]);
     // }
-    
+
     Ok(())
 }
 

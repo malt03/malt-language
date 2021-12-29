@@ -85,7 +85,7 @@ pub(crate) enum ExpressionNode<'a> {
     },
     StructConstruction {
         type_: Token<'a>,
-        arguments: Vec<CallArgumentNode<'a>>,
+        properties: Vec<CallArgumentNode<'a>>,
     },
 }
 
